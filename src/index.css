@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,89 +7,83 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 95.1%; /* #F2F2F2 */
+    --foreground: 0 0% 16.9%; /* #2B2B2B */
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 0 0% 16.9%; /* #2B2B2B */
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 0 0% 16.9%; /* #2B2B2B */
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 28 96% 54%; /* #F7931E orange */
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary-foreground: 0 0% 16.9%; /* #2B2B2B */
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
     --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent-foreground: 0 0% 16.9%; /* #2B2B2B */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 28 96% 54%; /* #F7931E orange */
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Custom colors for the app */
+    --app-background: 0 0% 95.1%; /* #F2F2F2 */
+    --header-background: 207 58% 25%; /* #1A3C64 */
+    --header-foreground: 0 0% 100%;
+    --cta-button: 28 96% 54%; /* #F7931E */
+    --text-main: 0 0% 16.9%; /* #2B2B2B */
+    --status-success: 140 57% 48%; /* #3CB878 */
+    --alert-color: 28 96% 54%; /* #F7931E */
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 16.9%; /* #2B2B2B */
+    --foreground: 0 0% 95.1%; /* #F2F2F2 */
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 16.9%; /* #2B2B2B */
+    --card-foreground: 0 0% 95.1%; /* #F2F2F2 */
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 16.9%; /* #2B2B2B */
+    --popover-foreground: 0 0% 95.1%; /* #F2F2F2 */
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 28 96% 54%; /* #F7931E orange */
+    --primary-foreground: 0 0% 16.9%; /* #2B2B2B */
 
     --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary-foreground: 0 0% 95.1%; /* #F2F2F2 */
 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
     --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent-foreground: 0 0% 95.1%; /* #F2F2F2 */
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 95.1%; /* #F2F2F2 */
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --ring: 28 96% 54%; /* #F7931E orange */
+
+    /* Custom colors for the app in dark mode */
+    --app-background: 0 0% 16.9%; /* #2B2B2B */
+    --header-background: 207 58% 20%; /* darker blue */
+    --header-foreground: 0 0% 95.1%; /* #F2F2F2 */
+    --cta-button: 28 96% 54%; /* #F7931E */
+    --text-main: 0 0% 95.1%; /* #F2F2F2 */
+    --status-success: 140 57% 48%; /* #3CB878 */
+    --alert-color: 28 96% 54%; /* #F7931E */
   }
 }
 
@@ -99,5 +94,46 @@
 
   body {
     @apply bg-background text-foreground;
+    background-color: hsl(var(--app-background));
+    color: hsl(var(--text-main));
+  }
+}
+
+/* Custom utility classes */
+@layer utilities {
+  .bg-app {
+    background-color: hsl(var(--app-background));
+  }
+  
+  .bg-header {
+    background-color: hsl(var(--header-background));
+  }
+  
+  .text-header {
+    color: hsl(var(--header-foreground));
+  }
+  
+  .bg-cta {
+    background-color: hsl(var(--cta-button));
+  }
+  
+  .text-main {
+    color: hsl(var(--text-main));
+  }
+  
+  .bg-status-success {
+    background-color: hsl(var(--status-success));
+  }
+  
+  .text-status-success {
+    color: hsl(var(--status-success));
+  }
+  
+  .bg-alert {
+    background-color: hsl(var(--alert-color));
+  }
+  
+  .text-alert {
+    color: hsl(var(--alert-color));
   }
 }

@@ -36,24 +36,24 @@ const ActivationScreen = ({ onActivationSuccess }: ActivationScreenProps) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-app-bg p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="bg-blue-600 p-3 rounded-full">
-              <Bot className="h-8 w-8 text-white" />
+            <div className="bg-header-bg p-3 rounded-full">
+              <Bot className="h-8 w-8 text-header-text" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold text-gray-900">
+          <CardTitle className="text-2xl font-bold text-main">
             Bienvenue sur Norbert
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-main">
             Votre assistant IA multicanal pour ne plus jamais rater un client
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="activation-code">Code d'activation</Label>
+            <Label htmlFor="activation-code" className="text-main">Code d'activation</Label>
             <Input
               id="activation-code"
               type="text"
@@ -63,24 +63,24 @@ const ActivationScreen = ({ onActivationSuccess }: ActivationScreenProps) => {
               className="text-center tracking-wider"
             />
             {error && (
-              <p className="text-sm text-red-600">{error}</p>
+              <p className="text-sm text-alert">{error}</p>
             )}
           </div>
           
           <Button 
             onClick={handleActivation} 
-            className="w-full" 
+            className="w-full bg-cta hover:bg-cta/90" 
             disabled={isLoading}
           >
             {isLoading ? 'Activation en cours...' : 'Activer mon compte'}
           </Button>
 
-          <div className="text-center text-sm text-gray-600">
+          <div className="text-center text-sm text-main">
             <p>Vous avez reçu votre code par email après votre achat.</p>
-            <p className="mt-1 text-blue-600">Code de démo : DEMO2024</p>
+            <p className="mt-1 text-cta">Code de démo : DEMO2024</p>
           </div>
 
-          <div className="flex items-center justify-center space-x-2 text-xs text-gray-500">
+          <div className="flex items-center justify-center space-x-2 text-xs text-main opacity-70">
             <Smartphone className="h-4 w-4" />
             <span>Disponible sur iOS et Android</span>
           </div>

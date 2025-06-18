@@ -70,13 +70,13 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="min-h-screen bg-app-bg p-4">
       <div className="max-w-md mx-auto">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-main mb-2">
             Connectez vos canaux
           </h1>
-          <p className="text-gray-600">
+          <p className="text-main opacity-70">
             Choisissez les plateformes que Norbert doit surveiller pour vous
           </p>
         </div>
@@ -93,13 +93,13 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
                     <div className="flex items-center space-x-3">
                       <Icon className={`h-8 w-8 ${channel.color}`} />
                       <div>
-                        <h3 className="font-medium text-gray-900">{channel.name}</h3>
-                        <p className="text-sm text-gray-500">{channel.description}</p>
+                        <h3 className="font-medium text-main">{channel.name}</h3>
+                        <p className="text-sm text-main opacity-70">{channel.description}</p>
                       </div>
                     </div>
                     
                     {isConnected ? (
-                      <Badge className="bg-green-100 text-green-800">
+                      <Badge className="bg-status-success text-white">
                         <Check className="h-3 w-3 mr-1" />
                         Connecté
                       </Badge>
@@ -107,7 +107,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
                       <Button
                         size="sm"
                         onClick={() => connectChannel(channel.type)}
-                        className="flex items-center space-x-1"
+                        className="flex items-center space-x-1 bg-cta hover:bg-cta/90"
                       >
                         <Plus className="h-4 w-4" />
                         <span>Connecter</span>
@@ -123,8 +123,8 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
         {connectedChannels.length > 0 && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-lg">Ordre de priorité</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-lg text-main">Ordre de priorité</CardTitle>
+              <CardDescription className="text-main opacity-70">
                 Glissez pour réorganiser l'ordre de traitement des messages
               </CardDescription>
             </CardHeader>
@@ -136,9 +136,9 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
                   
                   return (
                     <div key={channel.id} className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
-                      <span className="text-sm font-medium text-gray-500">#{index + 1}</span>
+                      <span className="text-sm font-medium text-main opacity-70">#{index + 1}</span>
                       <Icon className={`h-5 w-5 ${channelInfo?.color}`} />
-                      <span className="font-medium">{channelInfo?.name}</span>
+                      <span className="font-medium text-main">{channelInfo?.name}</span>
                     </div>
                   );
                 })}
@@ -149,7 +149,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
 
         <Button 
           onClick={onComplete} 
-          className="w-full"
+          className="w-full bg-cta hover:bg-cta/90"
           disabled={connectedChannels.length === 0}
         >
           {connectedChannels.length === 0 

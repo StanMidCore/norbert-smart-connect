@@ -62,16 +62,16 @@ Sois toujours poli, professionnel et utile.
   const isFormValid = profile.bio_description && profile.services_offered && profile.availability;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="min-h-screen bg-app-bg p-4">
       <div className="max-w-md mx-auto">
         <div className="text-center mb-6">
-          <div className="bg-blue-600 p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-            <Bot className="h-8 w-8 text-white" />
+          <div className="bg-header-bg p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+            <Bot className="h-8 w-8 text-header-text" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-main mb-2">
             Configurez votre IA
           </h1>
-          <p className="text-gray-600">
+          <p className="text-main opacity-70">
             Ces informations permettront à Norbert de répondre comme vous
           </p>
         </div>
@@ -79,14 +79,14 @@ Sois toujours poli, professionnel et utile.
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-lg">
+              <CardTitle className="flex items-center space-x-2 text-lg text-main">
                 <Briefcase className="h-5 w-5" />
                 <span>Votre activité</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="bio">Description de votre métier *</Label>
+                <Label htmlFor="bio" className="text-main">Description de votre métier *</Label>
                 <Textarea
                   id="bio"
                   placeholder="Ex: Je suis plombier avec 15 ans d'expérience, spécialisé dans les rénovations de salle de bain..."
@@ -97,9 +97,9 @@ Sois toujours poli, professionnel et utile.
               </div>
               
               <div>
-                <Label htmlFor="website">Site web (optionnel)</Label>
+                <Label htmlFor="website" className="text-main">Site web (optionnel)</Label>
                 <div className="flex items-center space-x-2 mt-1">
-                  <Globe className="h-4 w-4 text-gray-400" />
+                  <Globe className="h-4 w-4 text-main opacity-70" />
                   <Input
                     id="website"
                     type="url"
@@ -114,7 +114,7 @@ Sois toujours poli, professionnel et utile.
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Services proposés *</CardTitle>
+              <CardTitle className="text-lg text-main">Services proposés *</CardTitle>
             </CardHeader>
             <CardContent>
               <Textarea
@@ -127,7 +127,7 @@ Sois toujours poli, professionnel et utile.
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-lg">
+              <CardTitle className="flex items-center space-x-2 text-lg text-main">
                 <Clock className="h-5 w-5" />
                 <span>Disponibilités *</span>
               </CardTitle>
@@ -143,7 +143,7 @@ Sois toujours poli, professionnel et utile.
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-lg">
+              <CardTitle className="flex items-center space-x-2 text-lg text-main">
                 <Euro className="h-5 w-5" />
                 <span>Tarifs (optionnel)</span>
               </CardTitle>
@@ -161,14 +161,14 @@ Sois toujours poli, professionnel et utile.
         <div className="mt-8 space-y-4">
           <Button 
             onClick={handleSubmit} 
-            className="w-full"
+            className="w-full bg-cta hover:bg-cta/90"
             disabled={!isFormValid || isLoading}
           >
             {isLoading ? 'Configuration en cours...' : 'Finaliser la configuration'}
           </Button>
           
           {!isFormValid && (
-            <p className="text-sm text-gray-500 text-center">
+            <p className="text-sm text-main opacity-70 text-center">
               Veuillez remplir les champs obligatoires (*)
             </p>
           )}
