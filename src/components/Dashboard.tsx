@@ -237,11 +237,11 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
       </div>
 
       {/* Navigation Footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
+      <div className="fixed bottom-0 left-0 right-0 bg-header border-t border-gray-200">
         <div className="grid grid-cols-4 gap-1 p-2">
           <Button 
             variant="ghost" 
-            className="flex flex-col h-16 text-xs"
+            className="flex flex-col h-16 text-xs text-header hover:bg-header/80"
             onClick={() => onNavigate('dashboard')}
           >
             <MessageCircle className="h-6 w-6 mb-1" />
@@ -249,7 +249,7 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
           </Button>
           <Button 
             variant="ghost" 
-            className="flex flex-col h-16 text-xs"
+            className="flex flex-col h-16 text-xs text-header hover:bg-header/80"
             onClick={() => onNavigate('calendar')}
           >
             <Calendar className="h-6 w-6 mb-1" />
@@ -257,7 +257,7 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
           </Button>
           <Button 
             variant="ghost" 
-            className="flex flex-col h-16 text-xs"
+            className="flex flex-col h-16 text-xs text-header hover:bg-header/80"
             onClick={() => onNavigate('clients')}
           >
             <Users className="h-6 w-6 mb-1" />
@@ -265,7 +265,7 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
           </Button>
           <Button 
             variant="ghost" 
-            className="flex flex-col h-16 text-xs"
+            className="flex flex-col h-16 text-xs text-header hover:bg-header/80"
             onClick={() => onNavigate('settings')}
           >
             <Settings className="h-6 w-6 mb-1" />
