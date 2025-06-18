@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -100,24 +101,24 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-app-bg">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
+      <div className="bg-header border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
+            <div className="bg-cta p-2 rounded-lg">
               <Bot className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">Norbert</h1>
-              <p className="text-xs text-gray-500">Assistant IA</p>
+              <h1 className="text-lg font-semibold text-header">Norbert</h1>
+              <p className="text-xs text-header opacity-70">Assistant IA</p>
             </div>
           </div>
           
           <div className="flex items-center space-x-3">
             <div className="text-right">
-              <p className="text-xs text-gray-500">Mode</p>
-              <p className="text-sm font-medium">
+              <p className="text-xs text-header opacity-70">Mode</p>
+              <p className="text-sm font-medium text-header">
                 {autopilotMode ? 'Autopilot' : 'Manuel'}
               </p>
             </div>
@@ -136,7 +137,7 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500">Messages</p>
-                <p className="text-xl font-bold">{stats.totalMessages}</p>
+                <p className="text-xl font-bold text-main">{stats.totalMessages}</p>
               </div>
               <MessageCircle className="h-8 w-8 text-blue-600" />
             </div>
@@ -160,9 +161,9 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500">RDV aujourd'hui</p>
-                <p className="text-xl font-bold">{stats.appointmentsToday}</p>
+                <p className="text-xl font-bold text-status-success">{stats.appointmentsToday}</p>
               </div>
-              <Calendar className="h-8 w-8 text-green-600" />
+              <Calendar className="h-8 w-8 text-status-success" />
             </div>
           </CardContent>
         </Card>
@@ -172,7 +173,7 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500">Réponses manuelles</p>
-                <p className="text-xl font-bold">{stats.manualResponses}</p>
+                <p className="text-xl font-bold text-main">{stats.manualResponses}</p>
               </div>
               <Users className="h-8 w-8 text-purple-600" />
             </div>
@@ -182,7 +183,7 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
 
       {/* Messages récents */}
       <div className="p-4">
-        <h2 className="text-lg font-semibold mb-3">Messages récents</h2>
+        <h2 className="text-lg font-semibold mb-3 text-main">Messages récents</h2>
         <div className="space-y-3">
           {recentMessages.map((message) => (
             <Card 
@@ -195,7 +196,7 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
                   {getChannelIcon(message.channel_id)}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="font-medium text-gray-900">{message.from_name}</p>
+                      <p className="font-medium text-main">{message.from_name}</p>
                       <div className="flex items-center space-x-2">
                         {message.urgent && (
                           <Badge variant="destructive" className="text-xs">
@@ -213,9 +214,9 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center space-x-2">
                         {message.response_status === 'responded' ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <CheckCircle className="h-4 w-4 text-status-success" />
                         ) : (
-                          <Clock className="h-4 w-4 text-orange-600" />
+                          <Clock className="h-4 w-4 text-alert" />
                         )}
                         <span className="text-xs text-gray-500">
                           Géré par {message.handled_by === 'IA' ? 'IA' : 'Vous'}
