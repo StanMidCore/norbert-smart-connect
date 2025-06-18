@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +14,11 @@ import {
   MoreVertical,
   Star,
   Calendar,
-  User
+  User,
+  CheckCircle,
+  X,
+  Edit,
+  Bot
 } from 'lucide-react';
 import type { Client, ConversationMessage, Conversation } from '@/types/norbert';
 
@@ -24,9 +27,19 @@ interface ClientDetailProps {
   onBack: () => void;
 }
 
+interface PendingResponse {
+  id: string;
+  content: string;
+  generatedAt: string;
+  conversationId: string;
+}
+
 const ClientDetail = ({ clientId, onBack }: ClientDetailProps) => {
   const [newMessage, setNewMessage] = useState('');
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [pendingResponse, setPendingResponse] = useState<PendingResponse | null>(null);
+  const [isEditingResponse, setIsEditingResponse] = useState(false);
+  const [editedResponse, setEditedResponse] = useState('');
 
   // Données de démo - dans un vrai projet, ces données viendraient de Supabase
   const client: Client = {
@@ -142,12 +155,53 @@ const ClientDetail = ({ clientId, onBack }: ClientDetailProps) => {
     return date.toLocaleDateString();
   };
 
+  const simulatePendingResponse = () => {
+    const mockResponse: PendingResponse = {
+      id: 'pending_' + Date.now(),
+      content: 'Bonjour Marie ! Merci pour votre demande de devis. Pour une salle de bain de 6m² avec douche italienne et carrelage moderne, nous proposons un forfait entre 6000€ et 8500€ selon les finitions choisies. Je peux passer chez vous cette semaine pour un devis précis. Quelles sont vos disponibilités ?',
+      generatedAt: new Date().toISOString(),
+      conversationId: activeConversation
+    };
+    setPendingResponse(mockResponse);
+    setEditedResponse(mockResponse.content);
+  };
+
   const handleSendMessage = () => {
     if (newMessage.trim() && selectedConversation) {
-      // Ici on enverrait le message via l'API
-      console.log('Envoi du message:', newMessage);
+      // En mode manuel, on simule la génération d'une réponse IA
+      console.log('Génération de la réponse IA pour:', newMessage);
       setNewMessage('');
+      
+      // Simuler un délai de génération
+      setTimeout(() => {
+        simulatePendingResponse();
+      }, 1000);
     }
+  };
+
+  const handleApproveResponse = () => {
+    if (pendingResponse) {
+      console.log('Envoi de la réponse approuvée:', isEditingResponse ? editedResponse : pendingResponse.content);
+      // Ici on enverrait la réponse via l'API N8N
+      setPendingResponse(null);
+      setIsEditingResponse(false);
+      setEditedResponse('');
+    }
+  };
+
+  const handleRejectResponse = () => {
+    setPendingResponse(null);
+    setIsEditingResponse(false);
+    setEditedResponse('');
+  };
+
+  const handleEditResponse = () => {
+    setIsEditingResponse(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingResponse(false);
+    setEditedResponse(pendingResponse?.content || '');
   };
 
   const activeConversation = selectedConversation || conversations[0]?.id;
@@ -312,36 +366,109 @@ const ClientDetail = ({ clientId, onBack }: ClientDetailProps) => {
               </div>
             </ScrollArea>
             
-            {/* Zone de réponse */}
-            <div className="border-t p-4">
-              <div className="flex space-x-2">
-                <Textarea
-                  placeholder="Tapez votre message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  className="flex-1 min-h-[60px]"
-                />
-                <Button 
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
-                  className="self-end"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
+            {/* Réponse en attente de validation */}
+            {pendingResponse && (
+              <div className="border-t bg-blue-50 p-4 space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Bot className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-900">Réponse suggérée par l'IA</span>
+                  <Badge variant="outline" className="text-xs">En attente de validation</Badge>
+                </div>
+                
+                {isEditingResponse ? (
+                  <div className="space-y-3">
+                    <Textarea
+                      value={editedResponse}
+                      onChange={(e) => setEditedResponse(e.target.value)}
+                      className="min-h-[100px]"
+                      placeholder="Modifiez la réponse..."
+                    />
+                    <div className="flex space-x-2">
+                      <Button 
+                        onClick={handleApproveResponse}
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Valider les modifications
+                      </Button>
+                      <Button 
+                        onClick={handleCancelEdit}
+                        variant="outline"
+                        size="sm"
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="bg-white p-3 rounded border">
+                      <p className="text-sm text-gray-900">{pendingResponse.content}</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button 
+                        onClick={handleApproveResponse}
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Approuver & Envoyer
+                      </Button>
+                      <Button 
+                        onClick={handleEditResponse}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Modifier
+                      </Button>
+                      <Button 
+                        onClick={handleRejectResponse}
+                        variant="destructive"
+                        size="sm"
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Rejeter
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center justify-between mt-2">
-                <p className="text-xs text-gray-500">
-                  Réponse via {getChannelIcon(activeMessages[0]?.channel_type)} 
-                  <span className="ml-1 capitalize">
-                    {activeMessages[0]?.channel_type}
-                  </span>
-                </p>
-                <Button variant="outline" size="sm">
-                  <Calendar className="h-3 w-3 mr-1" />
-                  Planifier RDV
-                </Button>
+            )}
+            
+            {/* Zone de réponse normale */}
+            {!pendingResponse && (
+              <div className="border-t p-4">
+                <div className="flex space-x-2">
+                  <Textarea
+                    placeholder="Tapez votre message ou demandez à l'IA de générer une réponse..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    className="flex-1 min-h-[60px]"
+                  />
+                  <Button 
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim()}
+                    className="self-end"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-gray-500">
+                    Réponse via {getChannelIcon(activeMessages[0]?.channel_type)} 
+                    <span className="ml-1 capitalize">
+                      {activeMessages[0]?.channel_type}
+                    </span>
+                  </p>
+                  <Button variant="outline" size="sm">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    Planifier RDV
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
