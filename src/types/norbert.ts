@@ -33,6 +33,39 @@ export interface Message {
   response_status: 'pending' | 'responded' | 'ignored';
 }
 
+export interface ConversationMessage {
+  id: string;
+  conversation_id: string;
+  sender: 'client' | 'user' | 'ai';
+  content: string;
+  timestamp: string;
+  channel_type: 'email' | 'whatsapp' | 'sms' | 'instagram' | 'facebook';
+  read: boolean;
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  phone_number?: string;
+  email?: string;
+  first_contact: string;
+  last_contact: string;
+  total_messages: number;
+  status: 'prospect' | 'active' | 'converted' | 'lost';
+  preferred_channel: 'email' | 'whatsapp' | 'sms' | 'instagram' | 'facebook';
+  notes?: string;
+}
+
+export interface Conversation {
+  id: string;
+  client_id: string;
+  channel_type: 'email' | 'whatsapp' | 'sms' | 'instagram' | 'facebook';
+  subject?: string;
+  last_message_at: string;
+  messages_count: number;
+  unread_count: number;
+}
+
 export interface ClientProfile {
   user_id: string;
   bio_description: string;

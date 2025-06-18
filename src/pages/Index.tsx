@@ -1,14 +1,15 @@
-
 import { useState } from 'react';
 import ActivationScreen from '@/components/ActivationScreen';
 import ChannelSetup from '@/components/ChannelSetup';
 import ProfileSetup from '@/components/ProfileSetup';
 import Dashboard from '@/components/Dashboard';
+import ClientDetail from '@/components/ClientDetail';
 
-type AppScreen = 'activation' | 'channels' | 'profile' | 'dashboard' | 'calendar' | 'clients' | 'settings';
+type AppScreen = 'activation' | 'channels' | 'profile' | 'dashboard' | 'calendar' | 'clients' | 'settings' | 'client-detail';
 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('activation');
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   
   const handleActivationSuccess = () => {
     setCurrentScreen('channels');
@@ -26,6 +27,16 @@ const Index = () => {
     setCurrentScreen(screen as AppScreen);
   };
 
+  const handleClientDetail = (clientId: string) => {
+    setSelectedClientId(clientId);
+    setCurrentScreen('client-detail');
+  };
+
+  const handleBackToDashboard = () => {
+    setSelectedClientId(null);
+    setCurrentScreen('dashboard');
+  };
+
   // Écrans de configuration
   if (currentScreen === 'activation') {
     return <ActivationScreen onActivationSuccess={handleActivationSuccess} />;
@@ -38,10 +49,25 @@ const Index = () => {
   if (currentScreen === 'profile') {
     return <ProfileSetup onComplete={handleProfileSetupComplete} />;
   }
+
+  // Écran détail client
+  if (currentScreen === 'client-detail' && selectedClientId) {
+    return (
+      <ClientDetail 
+        clientId={selectedClientId} 
+        onBack={handleBackToDashboard}
+      />
+    );
+  }
   
   // Écran principal et navigation
   if (currentScreen === 'dashboard') {
-    return <Dashboard onNavigate={handleNavigation} />;
+    return (
+      <Dashboard 
+        onNavigate={handleNavigation} 
+        onClientDetail={handleClientDetail}
+      />
+    );
   }
   
   // Écrans temporaires pour la navigation
@@ -96,7 +122,7 @@ const Index = () => {
     );
   }
 
-  return <Dashboard onNavigate={handleNavigation} />;
+  return <Dashboard onNavigate={handleNavigation} onClientDetail={handleClientDetail} />;
 };
 
 export default Index;

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,9 +20,10 @@ import type { Message } from '@/types/norbert';
 
 interface DashboardProps {
   onNavigate: (screen: string) => void;
+  onClientDetail?: (clientId: string) => void;
 }
 
-const Dashboard = ({ onNavigate }: DashboardProps) => {
+const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
   const [autopilotMode, setAutopilotMode] = useState(true);
 
   // Données de démo
@@ -89,6 +89,14 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
     
     if (minutes < 60) return `${minutes}min`;
     return `${hours}h`;
+  };
+
+  const handleMessageClick = (message: Message) => {
+    // Simuler un ID client basé sur le nom
+    const clientId = message.from_name.toLowerCase().replace(/\s+/g, '-');
+    if (onClientDetail) {
+      onClientDetail(clientId);
+    }
   };
 
   return (
@@ -177,7 +185,11 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
         <h2 className="text-lg font-semibold mb-3">Messages récents</h2>
         <div className="space-y-3">
           {recentMessages.map((message) => (
-            <Card key={message.id} className="cursor-pointer hover:shadow-md transition-shadow">
+            <Card 
+              key={message.id} 
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleMessageClick(message)}
+            >
               <CardContent className="p-4">
                 <div className="flex items-start space-x-3">
                   {getChannelIcon(message.channel_id)}
