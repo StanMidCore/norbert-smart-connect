@@ -6,7 +6,7 @@ import Dashboard from '@/components/Dashboard';
 import ClientDetail from '@/components/ClientDetail';
 import N8NWorkflowDownload from '@/components/N8NWorkflowDownload';
 
-type AppScreen = 'activation' | 'channels' | 'profile' | 'dashboard' | 'calendar' | 'clients' | 'settings' | 'client-detail';
+type AppScreen = 'activation' | 'channels' | 'profile' | 'dashboard' | 'calendar' | 'clients' | 'settings' | 'client-detail' | 'n8n-download';
 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('activation');
