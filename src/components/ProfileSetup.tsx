@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Bot, Globe, Briefcase, Clock, Euro } from 'lucide-react';
+import { Bot, Globe, Briefcase, Clock, Euro, Webhook } from 'lucide-react';
 import type { ClientProfile } from '@/types/norbert';
 
 interface ProfileSetupProps {
@@ -19,7 +19,8 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
     services_offered: '',
     availability: '',
     pricing: '',
-    ai_instructions_built: ''
+    ai_instructions_built: '',
+    n8n_webhook_url: ''
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -38,6 +39,7 @@ Informations sur l'entreprise :
 - Disponibilités : ${profile.availability}
 - Tarifs : ${profile.pricing}
 - Site web : ${profile.website_url || 'Non renseigné'}
+- Webhook N8N : ${profile.n8n_webhook_url || 'Non configuré'}
 
 Ton rôle :
 1. Répondre aux demandes clients de manière professionnelle et chaleureuse
@@ -45,11 +47,13 @@ Ton rôle :
 3. Proposer des créneaux de rendez-vous
 4. Donner des informations sur les services et tarifs
 5. Rediriger vers le propriétaire si nécessaire
+6. Déclencher des workflows N8N quand nécessaire
 
 Sois toujours poli, professionnel et utile.
       `.trim();
 
       console.log('Instructions IA générées:', aiInstructions);
+      console.log('Webhook N8N configuré:', profile.n8n_webhook_url);
       setIsLoading(false);
       onComplete();
     }, 2000);
@@ -154,6 +158,34 @@ Sois toujours poli, professionnel et utile.
                 value={profile.pricing}
                 onChange={(e) => updateProfile('pricing', e.target.value)}
               />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-lg text-main">
+                <Webhook className="h-5 w-5" />
+                <span>Configuration N8N</span>
+              </CardTitle>
+              <CardDescription className="text-main opacity-70">
+                URL du webhook N8N pour automatiser vos workflows
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div>
+                <Label htmlFor="n8n-webhook" className="text-main">URL du webhook N8N (optionnel)</Label>
+                <Input
+                  id="n8n-webhook"
+                  type="url"
+                  placeholder="https://votre-n8n.com/webhook/norbert"
+                  value={profile.n8n_webhook_url}
+                  onChange={(e) => updateProfile('n8n_webhook_url', e.target.value)}
+                  className="mt-1"
+                />
+                <p className="text-xs text-main opacity-60 mt-1">
+                  Cette URL sera utilisée pour déclencher des actions automatiques (notifications, CRM, etc.)
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>

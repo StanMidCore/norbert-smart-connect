@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -74,6 +73,7 @@ export interface ClientProfile {
   availability: string;
   pricing: string;
   ai_instructions_built: string;
+  n8n_webhook_url?: string;
 }
 
 export interface Appointment {
