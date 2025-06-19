@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Bot, Workflow } from 'lucide-react';
+import { Download, Bot, Workflow, ArrowLeft } from 'lucide-react';
 
 const N8NWorkflowDownload = () => {
   const [isDownloading, setIsDownloading] = useState(false);
@@ -383,59 +383,90 @@ const N8NWorkflowDownload = () => {
     "versionId": "1"
   };
 
-  const downloadWorkflow = () => {
+  const handleDownload = () => {
     setIsDownloading(true);
     
-    try {
-      const jsonString = JSON.stringify(workflowData, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'norbert-ai-workflow.json';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Erreur lors du téléchargement:', error);
-    } finally {
-      setIsDownloading(false);
-    }
+    setTimeout(() => {
+      try {
+        // Convertir l'objet en JSON avec indentation
+        const jsonString = JSON.stringify(workflowData, null, 2);
+        
+        // Créer un blob avec le contenu JSON
+        const blob = new Blob([jsonString], { 
+          type: 'application/json;charset=utf-8' 
+        });
+        
+        // Créer une URL temporaire pour le blob
+        const url = window.URL.createObjectURL(blob);
+        
+        // Créer un lien de téléchargement
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'norbert-ai-workflow.json';
+        link.style.display = 'none';
+        
+        // Ajouter le lien au DOM, cliquer dessus, puis le supprimer
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Nettoyer l'URL temporaire
+        window.URL.revokeObjectURL(url);
+        
+        console.log('Téléchargement du workflow N8N initié');
+      } catch (error) {
+        console.error('Erreur lors du téléchargement:', error);
+        alert('Erreur lors du téléchargement. Veuillez réessayer.');
+      } finally {
+        setIsDownloading(false);
+      }
+    }, 100);
+  };
+
+  const handleBackToSettings = () => {
+    window.history.back();
   };
 
   return (
-    <div className="min-h-screen bg-app-bg p-4">
+    <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-6">
-          <div className="bg-header-bg p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-            <Workflow className="h-8 w-8 text-header-text" />
+        {/* Header avec bouton retour */}
+        <div className="flex items-center mb-6">
+          <button 
+            onClick={handleBackToSettings}
+            className="flex items-center text-blue-600 hover:text-blue-800 mr-4"
+          >
+            <ArrowLeft className="h-5 w-5 mr-1" />
+            Retour
+          </button>
+          <div className="flex-1 text-center">
+            <div className="bg-blue-100 p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <Workflow className="h-8 w-8 text-blue-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Workflow N8N Norbert IA
+            </h1>
+            <p className="text-gray-600">
+              Téléchargez le workflow complet pour votre instance N8N
+            </p>
           </div>
-          <h1 className="text-2xl font-bold text-main mb-2">
-            Workflow N8N Norbert IA
-          </h1>
-          <p className="text-main opacity-70">
-            Téléchargez le workflow complet pour votre instance N8N
-          </p>
         </div>
 
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-main">
+            <CardTitle className="flex items-center space-x-2">
               <Bot className="h-5 w-5" />
               <span>Agent IA Multi-Canal</span>
             </CardTitle>
-            <CardDescription className="text-main opacity-70">
+            <CardDescription>
               Ce workflow inclut toutes les fonctionnalités de Norbert pour gérer vos communications clients
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div className="space-y-2">
-                <h4 className="font-semibold text-main">Fonctionnalités incluses :</h4>
-                <ul className="space-y-1 text-main opacity-80">
+                <h4 className="font-semibold">Fonctionnalités incluses :</h4>
+                <ul className="space-y-1 text-gray-600">
                   <li>• Réception multi-canal</li>
                   <li>• Analyse intelligente des messages</li>
                   <li>• Agent IA personnalisé</li>
@@ -444,8 +475,8 @@ const N8NWorkflowDownload = () => {
                 </ul>
               </div>
               <div className="space-y-2">
-                <h4 className="font-semibold text-main">Configuration requise :</h4>
-                <ul className="space-y-1 text-main opacity-80">
+                <h4 className="font-semibold">Configuration requise :</h4>
+                <ul className="space-y-1 text-gray-600">
                   <li>• Clé API OpenAI</li>
                   <li>• Credentials Supabase</li>
                   <li>• Instance N8N active</li>
@@ -458,10 +489,10 @@ const N8NWorkflowDownload = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-main">Instructions d'installation</CardTitle>
+            <CardTitle>Instructions d'installation</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <ol className="space-y-3 text-sm text-main opacity-80">
+            <ol className="space-y-3 text-sm text-gray-600">
               <li><strong>1.</strong> Téléchargez le fichier JSON ci-dessous</li>
               <li><strong>2.</strong> Dans N8N, cliquez sur "New Workflow" puis "Import from JSON"</li>
               <li><strong>3.</strong> Collez le contenu du fichier JSON téléchargé</li>
@@ -472,9 +503,10 @@ const N8NWorkflowDownload = () => {
             
             <div className="mt-6 pt-4 border-t">
               <Button 
-                onClick={downloadWorkflow}
+                onClick={handleDownload}
                 disabled={isDownloading}
-                className="w-full bg-cta hover:bg-cta/90"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                size="lg"
               >
                 {isDownloading ? (
                   <>
@@ -493,7 +525,7 @@ const N8NWorkflowDownload = () => {
         </Card>
 
         <div className="mt-6 text-center">
-          <p className="text-sm text-main opacity-60">
+          <p className="text-sm text-gray-500">
             Le fichier téléchargé contient toute la logique nécessaire pour faire fonctionner Norbert IA dans votre environnement N8N
           </p>
         </div>
