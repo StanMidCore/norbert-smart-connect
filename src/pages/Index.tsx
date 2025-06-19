@@ -4,6 +4,7 @@ import ChannelSetup from '@/components/ChannelSetup';
 import ProfileSetup from '@/components/ProfileSetup';
 import Dashboard from '@/components/Dashboard';
 import ClientDetail from '@/components/ClientDetail';
+import N8NWorkflowDownload from '@/components/N8NWorkflowDownload';
 
 type AppScreen = 'activation' | 'channels' | 'profile' | 'dashboard' | 'calendar' | 'clients' | 'settings' | 'client-detail';
 
@@ -108,18 +109,33 @@ const Index = () => {
   if (currentScreen === 'settings') {
     return (
       <div className="min-h-screen bg-gray-50 p-4">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Réglages</h1>
-          <p className="text-gray-600 mb-8">Configuration (à venir)</p>
+        <div className="max-w-md mx-auto space-y-4">
+          <h1 className="text-2xl font-bold mb-4 text-center">Réglages</h1>
+          
+          <div className="bg-white p-4 rounded-lg shadow">
+            <h2 className="text-lg font-semibold mb-2">Workflow N8N</h2>
+            <p className="text-gray-600 mb-4">Téléchargez le workflow Norbert IA pour votre instance N8N</p>
+            <button 
+              onClick={() => setCurrentScreen('n8n-download')}
+              className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Télécharger le workflow
+            </button>
+          </div>
+          
           <button 
             onClick={() => setCurrentScreen('dashboard')}
-            className="text-blue-600 underline"
+            className="text-blue-600 underline block mx-auto"
           >
             Retour au dashboard
           </button>
         </div>
       </div>
     );
+  }
+
+  if (currentScreen === 'n8n-download') {
+    return <N8NWorkflowDownload />;
   }
 
   return <Dashboard onNavigate={handleNavigation} onClientDetail={handleClientDetail} />;
