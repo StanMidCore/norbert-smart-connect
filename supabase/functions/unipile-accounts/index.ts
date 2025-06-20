@@ -25,12 +25,16 @@ serve(async (req) => {
       }
     });
 
-    const accounts = await response.json();
-    console.log('Comptes Unipile récupérés:', accounts);
+    const accountsData = await response.json();
+    console.log('Réponse Unipile complète:', accountsData);
 
     if (!response.ok) {
-      throw new Error(`Erreur API Unipile: ${accounts.message || 'Erreur inconnue'}`);
+      throw new Error(`Erreur API Unipile: ${accountsData.message || 'Erreur inconnue'}`);
     }
+
+    // Extraire le tableau d'accounts depuis la structure de réponse Unipile
+    const accounts = accountsData.items || [];
+    console.log('Comptes extraits:', accounts);
 
     // Transformation des comptes au format Norbert
     const norbertChannels = accounts.map((account: any) => ({
@@ -44,6 +48,8 @@ serve(async (req) => {
         name: account.name || account.identifier
       }
     }));
+
+    console.log('Canaux Norbert générés:', norbertChannels);
 
     return new Response(JSON.stringify({ 
       success: true, 
