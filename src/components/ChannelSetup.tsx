@@ -3,8 +3,9 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Mail, Phone, Instagram, Facebook, Loader2, RefreshCw, Plus } from 'lucide-react';
+import { MessageSquare, Mail, Phone, Instagram, Facebook, Loader2, RefreshCw, Plus, QrCode } from 'lucide-react';
 import { useUnipile } from '@/hooks/useUnipile';
+import { useToast } from '@/hooks/use-toast';
 import type { Channel } from '@/types/norbert';
 
 interface ChannelSetupProps {
@@ -13,8 +14,10 @@ interface ChannelSetupProps {
 
 const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   const { channels, loading, error, fetchAccounts, connectAccount } = useUnipile();
+  const { toast } = useToast();
   const [connectedChannels, setConnectedChannels] = useState<Channel[]>([]);
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [qrCode, setQrCode] = useState<string | null>(null);
   
   const channelIcons = {
     whatsapp: MessageSquare,
@@ -60,11 +63,38 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
 
   const handleConnectProvider = async (provider: string) => {
     setConnecting(provider);
+    setQrCode(null);
+    
     try {
-      await connectAccount(provider);
-      await fetchAccounts(); // Refresh the list
+      const result = await connectAccount(provider);
+      
+      if (result.qr_code) {
+        // Pour WhatsApp, afficher le QR code
+        setQrCode(result.qr_code);
+        toast({
+          title: "QR Code généré",
+          description: "Scannez le QR code avec WhatsApp pour connecter votre compte",
+        });
+      } else if (result.authorization_url) {
+        // Pour les autres providers, ouvrir l'URL d'autorisation
+        toast({
+          title: "Redirection en cours",
+          description: "Une nouvelle fenêtre va s'ouvrir pour l'autorisation",
+        });
+      } else {
+        toast({
+          title: "Connexion réussie",
+          description: `Votre compte ${provider} a été connecté`,
+        });
+        await fetchAccounts(); // Refresh the list
+      }
     } catch (error) {
       console.error('Erreur connexion:', error);
+      toast({
+        title: "Erreur de connexion",
+        description: `Impossible de connecter ${provider}. Veuillez réessayer.`,
+        variant: "destructive",
+      });
     } finally {
       setConnecting(null);
     }
@@ -109,6 +139,29 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
                   Réessayer
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* QR Code pour WhatsApp */}
+        {qrCode && (
+          <Card className="mb-6 border-green-200">
+            <CardHeader>
+              <CardTitle className="text-lg text-main flex items-center">
+                <QrCode className="h-5 w-5 mr-2" />
+                WhatsApp QR Code
+              </CardTitle>
+              <CardDescription>
+                Ouvrez WhatsApp sur votre téléphone et scannez ce QR code
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <div className="bg-white p-4 rounded-lg inline-block">
+                <img src={`data:image/png;base64,${qrCode}`} alt="QR Code WhatsApp" className="max-w-48 mx-auto" />
+              </div>
+              <p className="text-sm text-main opacity-70 mt-2">
+                Le QR code expire après quelques minutes
+              </p>
             </CardContent>
           </Card>
         )}
