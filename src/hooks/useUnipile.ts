@@ -51,6 +51,30 @@ export const useUnipile = () => {
     }
   };
 
+  const connectAccount = async (provider: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('connect-unipile-account', {
+        body: { provider }
+      });
+
+      if (error) throw error;
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Erreur connexion compte');
+      }
+
+      // Ouvrir l'URL d'autorisation dans un nouvel onglet
+      if (data.authorization_url) {
+        window.open(data.authorization_url, '_blank');
+      }
+
+      return data;
+    } catch (err) {
+      console.error('Erreur connectAccount:', err);
+      throw err;
+    }
+  };
+
   const sendMessage = async (accountId: string, to: string, message: string, channelType: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('send-unipile-message', {
@@ -85,6 +109,7 @@ export const useUnipile = () => {
     loading,
     error,
     fetchAccounts,
+    connectAccount,
     sendMessage,
   };
 };
