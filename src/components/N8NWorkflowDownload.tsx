@@ -447,7 +447,7 @@ const N8NWorkflowDownload = () => {
               Workflow N8N Norbert IA
             </h1>
             <p className="text-gray-600">
-              Téléchargez le workflow complet pour votre instance N8N
+              Téléchargez votre workflow Norbert personnalisé pour N8N
             </p>
           </div>
         </div>
@@ -456,10 +456,10 @@ const N8NWorkflowDownload = () => {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Bot className="h-5 w-5" />
-              <span>Agent IA Multi-Canal</span>
+              <span>Agent IA Multi-Canal Personnalisé</span>
             </CardTitle>
             <CardDescription>
-              Ce workflow inclut toutes les fonctionnalités de Norbert pour gérer vos communications clients
+              Votre workflow Norbert complet avec toutes vos configurations spécifiques
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -467,22 +467,37 @@ const N8NWorkflowDownload = () => {
               <div className="space-y-2">
                 <h4 className="font-semibold">Fonctionnalités incluses :</h4>
                 <ul className="space-y-1 text-gray-600">
-                  <li>• Réception multi-canal</li>
+                  <li>• Webhook multi-canal configuré</li>
                   <li>• Analyse intelligente des messages</li>
-                  <li>• Agent IA personnalisé</li>
-                  <li>• Détection d'urgence</li>
-                  <li>• Gestion des rendez-vous</li>
+                  <li>• IA Norbert avec profil artisan</li>
+                  <li>• Détection d'urgence automatique</li>
+                  <li>• Gestion RDV et devis</li>
+                  <li>• Sauvegarde en base Supabase</li>
+                  <li>• Notifications d'urgence</li>
+                  <li>• Routage par type d'action</li>
                 </ul>
               </div>
               <div className="space-y-2">
                 <h4 className="font-semibold">Configuration requise :</h4>
                 <ul className="space-y-1 text-gray-600">
-                  <li>• Clé API OpenAI</li>
+                  <li>• Clé API OpenAI (GPT-4)</li>
                   <li>• Credentials Supabase</li>
                   <li>• Instance N8N active</li>
-                  <li>• Webhooks configurés</li>
+                  <li>• Connexions webhook configurées</li>
+                  <li>• Table "messages" en base</li>
                 </ul>
               </div>
+            </div>
+            
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <h4 className="font-semibold text-blue-800 mb-2">Spécificités de votre workflow :</h4>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• Profil Norbert spécialisé artisanat/plomberie</li>
+                <li>• Tarifs configurés (50€ déplacement, 65€/h)</li>
+                <li>• Détection mots-clés urgence en français</li>
+                <li>• Intégration directe Supabase projet</li>
+                <li>• Gestion créneaux RDV automatisée</li>
+              </ul>
             </div>
           </CardContent>
         </Card>
@@ -496,9 +511,15 @@ const N8NWorkflowDownload = () => {
               <li><strong>1.</strong> Téléchargez le fichier JSON ci-dessous</li>
               <li><strong>2.</strong> Dans N8N, cliquez sur "New Workflow" puis "Import from JSON"</li>
               <li><strong>3.</strong> Collez le contenu du fichier JSON téléchargé</li>
-              <li><strong>4.</strong> Configurez vos credentials (OpenAI et Supabase)</li>
-              <li><strong>5.</strong> Activez le workflow</li>
-              <li><strong>6.</strong> Récupérez l'URL du webhook généré</li>
+              <li><strong>4.</strong> Configurez vos credentials :
+                <ul className="ml-4 mt-1 space-y-1">
+                  <li>- OpenAI API (nom: "OpenAI Norbert")</li>
+                  <li>- Supabase API (nom: "Supabase Norbert")</li>
+                </ul>
+              </li>
+              <li><strong>5.</strong> Vérifiez que la table "messages" existe dans Supabase</li>
+              <li><strong>6.</strong> Activez le workflow</li>
+              <li><strong>7.</strong> Récupérez l'URL du webhook "norbert-messages"</li>
             </ol>
             
             <div className="mt-6 pt-4 border-t">
@@ -516,7 +537,7 @@ const N8NWorkflowDownload = () => {
                 ) : (
                   <>
                     <Download className="mr-2 h-4 w-4" />
-                    Télécharger le workflow N8N
+                    Télécharger votre workflow Norbert
                   </>
                 )}
               </Button>
@@ -526,7 +547,7 @@ const N8NWorkflowDownload = () => {
 
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-500">
-            Le fichier téléchargé contient toute la logique nécessaire pour faire fonctionner Norbert IA dans votre environnement N8N
+            Ce workflow contient votre configuration personnalisée avec les paramètres spécifiques à votre activité d'artisan
           </p>
         </div>
       </div>
