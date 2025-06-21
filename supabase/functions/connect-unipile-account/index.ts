@@ -24,54 +24,17 @@ serve(async (req) => {
       });
     }
 
-    const unipileApiKey = 'E/f3wD65./cyZGhVVeFRacYQS7Gjl2qy+PMcVGamxIwDxJQtTuWo=';
+    // IMPORTANTE: Utilisez votre vraie clé API Unipile ici
+    const unipileApiKey = Deno.env.get('UNIPILE_API_KEY') || 'YOUR_REAL_UNIPILE_API_KEY_HERE';
     
     console.log('Connexion compte Unipile pour provider:', provider);
 
-    // Préparer les paramètres selon le provider
-    let requestBody;
-    
-    switch (provider.toLowerCase()) {
-      case 'whatsapp':
-        requestBody = {
-          provider: 'WHATSAPP'
-        };
-        break;
-        
-      case 'gmail':
-        requestBody = {
-          provider: 'GMAIL'
-        };
-        break;
-        
-      case 'outlook':
-        requestBody = {
-          provider: 'OUTLOOK'
-        };
-        break;
-        
-      case 'instagram':
-        requestBody = {
-          provider: 'INSTAGRAM',
-          username: '', // L'utilisateur devra fournir ces infos
-          password: ''  // Nous allons retourner une URL pour qu'il les saisisse
-        };
-        break;
-        
-      case 'facebook':
-        requestBody = {
-          provider: 'FACEBOOK'
-        };
-        break;
-        
-      default:
-        throw new Error(`Provider ${provider} non supporté`);
-    }
-
-    console.log('Corps de la requête:', requestBody);
-
-    // Pour les providers OAuth (Gmail, Outlook, Facebook), on utilise l'API d'autorisation
+    // Pour les providers OAuth (Gmail, Outlook, Facebook), on utilise l'API d'autorisation hébergée
     if (['gmail', 'outlook', 'facebook'].includes(provider.toLowerCase())) {
+      console.log('Utilisation de l\'API d\'autorisation hébergée pour:', provider);
+      
+      const origin = req.headers.get('origin') || 'http://localhost:3000';
+      
       const authResponse = await fetch('https://api2.unipile.com:13279/api/v1/hosted/accounts/link', {
         method: 'POST',
         headers: {
@@ -81,16 +44,17 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           providers: [provider.toUpperCase()],
-          success_callback_url: `${req.headers.get('origin')}/channels?success=true`,
-          error_callback_url: `${req.headers.get('origin')}/channels?error=connection_failed`
+          success_callback_url: `${origin}/channels?success=true`,
+          error_callback_url: `${origin}/channels?error=connection_failed`
         })
       });
 
-      const authResult = await response.json();
+      const authResult = await authResponse.json();
       console.log('Réponse Unipile auth:', authResult);
 
       if (!authResponse.ok) {
-        throw new Error(`Erreur API Unipile Auth: ${authResult.message || 'Erreur inconnue'}`);
+        console.error('Erreur API Unipile Auth:', authResult);
+        throw new Error(`Erreur API Unipile Auth: ${authResult.message || authResult.detail || 'Erreur inconnue'}`);
       }
 
       return new Response(JSON.stringify({ 
@@ -103,40 +67,57 @@ serve(async (req) => {
     }
 
     // Pour WhatsApp, on utilise l'API normale qui va retourner un QR code
-    const response = await fetch('https://api2.unipile.com:13279/api/v1/accounts', {
-      method: 'POST',
-      headers: {
-        'X-API-KEY': unipileApiKey,
-        'Content-Type': 'application/json',
-        'accept': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    const result = await response.json();
-    console.log('Réponse Unipile connexion:', result);
-
-    if (!response.ok) {
-      throw new Error(`Erreur API Unipile: ${result.message || result.detail || 'Erreur inconnue'}`);
-    }
-
-    // Pour WhatsApp, on retourne les infos du QR code
     if (provider.toLowerCase() === 'whatsapp') {
+      console.log('Création compte WhatsApp...');
+      
+      const response = await fetch('https://api2.unipile.com:13279/api/v1/accounts', {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': unipileApiKey,
+          'Content-Type': 'application/json',
+          'accept': 'application/json'
+        },
+        body: JSON.stringify({
+          provider: 'WHATSAPP'
+        })
+      });
+
+      const result = await response.json();
+      console.log('Réponse Unipile WhatsApp:', result);
+
+      if (!response.ok) {
+        console.error('Erreur API Unipile:', result);
+        throw new Error(`Erreur API Unipile: ${result.message || result.detail || 'Erreur inconnue'}`);
+      }
+
+      // Pour WhatsApp, on retourne les infos du QR code
       return new Response(JSON.stringify({ 
         success: true, 
-        qr_code: result.qr_code,
-        account_id: result.id,
+        qr_code: result.checkpoint?.qrcode || result.qr_code,
+        account_id: result.account_id || result.id,
         message: 'Scannez le QR code avec WhatsApp'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // Pour Instagram (nécessite username/password)
+    if (provider.toLowerCase() === 'instagram') {
+      // Pour Instagram, on retourne une URL pour que l'utilisateur saisisse ses identifiants
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Instagram nécessite une configuration manuelle. Veuillez vous connecter via le dashboard Unipile.',
+        requires_manual_setup: true
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     return new Response(JSON.stringify({ 
-      success: true, 
-      account_id: result.id,
-      message: 'Compte connecté avec succès'
+      error: `Provider ${provider} non supporté pour la connexion automatique`
     }), {
+      status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

@@ -77,9 +77,16 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
         });
       } else if (result.authorization_url) {
         // Pour les autres providers, ouvrir l'URL d'autorisation
+        window.open(result.authorization_url, '_blank');
         toast({
-          title: "Redirection en cours",
-          description: "Une nouvelle fenêtre va s'ouvrir pour l'autorisation",
+          title: "Autorisation ouverte",
+          description: "Complétez l'autorisation dans le nouvel onglet, puis actualisez cette page",
+        });
+      } else if (result.requires_manual_setup) {
+        toast({
+          title: "Configuration manuelle requise",
+          description: result.error,
+          variant: "destructive",
         });
       } else {
         toast({
@@ -90,9 +97,19 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
       }
     } catch (error) {
       console.error('Erreur connexion:', error);
+      let errorMessage = `Impossible de connecter ${provider}. `;
+      
+      if (error.message?.includes('Invalid credentials')) {
+        errorMessage += 'Clé API Unipile invalide. Veuillez vérifier votre configuration.';
+      } else if (error.message?.includes('non-2xx status code')) {
+        errorMessage += 'Erreur de configuration du serveur. Veuillez réessayer plus tard.';
+      } else {
+        errorMessage += 'Veuillez réessayer.';
+      }
+      
       toast({
         title: "Erreur de connexion",
-        description: `Impossible de connecter ${provider}. Veuillez réessayer.`,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -129,6 +146,14 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
               <div className="text-red-600 text-sm">
                 <p className="font-medium">Erreur de connexion</p>
                 <p>{error}</p>
+                {error.includes('Invalid credentials') && (
+                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                    <p className="text-yellow-800 text-xs">
+                      💡 <strong>Solution :</strong> La clé API Unipile n'est pas configurée correctement. 
+                      Veuillez vérifier votre configuration dans les secrets Supabase.
+                    </p>
+                  </div>
+                )}
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -162,6 +187,14 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
               <p className="text-sm text-main opacity-70 mt-2">
                 Le QR code expire après quelques minutes
               </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setQrCode(null)}
+                className="mt-2"
+              >
+                Fermer
+              </Button>
             </CardContent>
           </Card>
         )}
@@ -245,6 +278,25 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
               );
             })}
         </div>
+
+        {/* Configuration info */}
+        <Card className="mb-6 border-blue-200">
+          <CardHeader>
+            <CardTitle className="text-lg text-main">ℹ️ Information importante</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <p className="text-main opacity-70">
+                Pour que les connexions fonctionnent, vous devez :
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-main opacity-70">
+                <li>Configurer votre vraie clé API Unipile dans les secrets Supabase</li>
+                <li>Avoir un compte Unipile actif</li>
+                <li>WhatsApp nécessite WhatsApp Business</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
 
         {connectedChannels.length > 0 && (
           <Card className="mb-6">
