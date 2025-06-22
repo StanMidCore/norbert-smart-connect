@@ -20,6 +20,8 @@ const StripePayment = ({ signupId, email, onComplete, onBack }: StripePaymentPro
     setLoading(true);
 
     try {
+      console.log('Début du processus de paiement pour:', email);
+      
       const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
         body: {
           signup_id: signupId,
@@ -27,17 +29,26 @@ const StripePayment = ({ signupId, email, onComplete, onBack }: StripePaymentPro
         }
       });
 
-      if (error) throw error;
+      console.log('Réponse de create-stripe-checkout:', data, error);
+
+      if (error) {
+        console.error('Erreur de la fonction:', error);
+        throw error;
+      }
 
       if (data.success && data.checkout_url) {
-        // Rediriger vers Stripe Checkout
-        window.location.href = data.checkout_url;
+        console.log('URL de checkout reçue:', data.checkout_url);
+        // Ouvrir Stripe checkout dans un nouvel onglet
+        window.open(data.checkout_url, '_blank');
+        toast.success('Redirection vers Stripe en cours...');
       } else {
+        console.error('Données de réponse invalides:', data);
         throw new Error(data.error || 'Erreur lors de la création du paiement');
       }
     } catch (err) {
       console.error('Erreur paiement:', err);
       toast.error(err instanceof Error ? err.message : 'Erreur de paiement');
+    } finally {
       setLoading(false);
     }
   };
