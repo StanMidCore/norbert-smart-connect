@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { MessageSquare, Mail, Phone, Instagram, Facebook, Loader2, RefreshCw, Plus, QrCode } from 'lucide-react';
 import { useUnipile } from '@/hooks/useUnipile';
+import { useNorbertUser } from '@/hooks/useNorbertUser';
 import { useToast } from '@/hooks/use-toast';
 import type { Channel } from '@/types/norbert';
 
@@ -14,6 +15,7 @@ interface ChannelSetupProps {
 
 const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   const { channels, loading, error, fetchAccounts, connectAccount } = useUnipile();
+  const { user, getCurrentUser } = useNorbertUser();
   const { toast } = useToast();
   const [connectedChannels, setConnectedChannels] = useState<Channel[]>([]);
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -42,6 +44,14 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     { id: 'instagram', name: 'Instagram', description: 'Messages Instagram' },
     { id: 'facebook', name: 'Facebook', description: 'Messages Facebook' },
   ];
+
+  // Initialiser l'utilisateur au chargement
+  useEffect(() => {
+    if (!user) {
+      console.log('Récupération utilisateur...');
+      getCurrentUser();
+    }
+  }, [user, getCurrentUser]);
 
   // Vérifier les paramètres URL pour les redirections OAuth
   useEffect(() => {
@@ -74,7 +84,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
         .filter(ch => ch.status === 'connected')
         .map((ch, index) => ({
           id: ch.id,
-          user_id: 'user1',
+          user_id: user?.id || 'user1',
           channel_type: ch.channel_type as any,
           unipile_account_id: ch.unipile_account_id,
           status: 'connected' as const,
@@ -84,9 +94,18 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
       
       setConnectedChannels(normalizedChannels);
     }
-  }, [channels]);
+  }, [channels, user]);
 
   const handleConnectProvider = async (provider: string) => {
+    if (!user) {
+      toast({
+        title: "Erreur",
+        description: "Utilisateur non trouvé. Veuillez recharger la page.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setConnecting(provider);
     setQrCode(null);
     
@@ -142,12 +161,19 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     }
   };
 
-  if (loading) {
+  useEffect(() => {
+    if (user) {
+      console.log('Utilisateur connecté:', user.email);
+      fetchAccounts();
+    }
+  }, [user, fetchAccounts]);
+
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-app-bg p-4 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-main">Chargement de vos canaux...</p>
+          <p className="text-main">Chargement de votre compte...</p>
         </div>
       </div>
     );
@@ -161,7 +187,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
             Connecter vos canaux
           </h1>
           <p className="text-main opacity-70">
-            Ajoutez vos comptes pour recevoir et répondre aux messages
+            Bonjour {user.email} ! Ajoutez vos comptes pour recevoir et répondre aux messages
           </p>
         </div>
 
@@ -253,9 +279,9 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
                       <div className="flex items-center space-x-3">
                         <Icon className={`h-8 w-8 ${color}`} />
                         <div>
-                          <h3 className="font-medium text-main">{channel.provider_info.name}</h3>
+                          <h3 className="font-medium text-main">{channel.provider_info?.name || channel.channel_type}</h3>
                           <p className="text-sm text-main opacity-70">
-                            {channel.provider_info.provider} • {channel.provider_info.identifier}
+                            {channel.provider_info?.provider || channel.channel_type.toUpperCase()} • {channel.provider_info?.identifier || channel.unipile_account_id}
                           </p>
                         </div>
                       </div>
@@ -278,7 +304,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           </h2>
           
           {availableProviders
-            .filter(provider => !channels.some(ch => ch.provider_info.provider.toLowerCase() === provider.id))
+            .filter(provider => !channels.some(ch => ch.provider_info?.provider?.toLowerCase() === provider.id || ch.channel_type === provider.id))
             .map((provider) => {
               const Icon = channelIcons[provider.id as keyof typeof channelIcons] || MessageSquare;
               const color = channelColors[provider.id as keyof typeof channelColors] || 'text-gray-600';

@@ -1,5 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,12 +25,36 @@ serve(async (req) => {
       });
     }
 
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get demo user
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', 'demo@norbert.ai')
+      .single();
+
+    if (userError || !user) {
+      console.error('Utilisateur démo non trouvé:', userError);
+      return new Response(JSON.stringify({ 
+        error: 'Utilisateur non trouvé',
+        success: false 
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Récupération de la clé API depuis les secrets Supabase
     const unipileApiKey = Deno.env.get('UNIPILE_API_KEY');
     if (!unipileApiKey) {
       console.error('Clé API Unipile manquante dans les secrets');
       return new Response(JSON.stringify({ 
-        error: 'Configuration manquante: clé API Unipile non configurée' 
+        error: 'Configuration manquante: clé API Unipile non configurée',
+        success: false 
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -68,6 +93,31 @@ serve(async (req) => {
         });
       }
 
+      // Stocker le canal dans notre base de données
+      const accountId = result.account_id || result.id;
+      if (accountId) {
+        const { error: insertError } = await supabase
+          .from('channels')
+          .upsert({
+            user_id: user.id,
+            channel_type: 'whatsapp',
+            unipile_account_id: accountId,
+            status: 'connected',
+            connected_at: new Date().toISOString(),
+            provider_info: {
+              provider: 'WHATSAPP',
+              identifier: accountId,
+              name: 'WhatsApp Business'
+            }
+          });
+
+        if (insertError) {
+          console.error('Erreur insertion canal:', insertError);
+        } else {
+          console.log('Canal WhatsApp créé dans la base de données');
+        }
+      }
+
       // Pour WhatsApp, on retourne les infos du QR code
       const qrCode = result.checkpoint?.qrcode || result.qr_code;
       if (!qrCode) {
@@ -83,7 +133,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ 
         success: true, 
         qr_code: qrCode,
-        account_id: result.account_id || result.id,
+        account_id: accountId,
         message: 'Scannez le QR code avec WhatsApp'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
