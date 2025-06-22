@@ -60,19 +60,19 @@ const StripePayment = ({ signupId, email, onComplete, onBack }: StripePaymentPro
             <ul className="space-y-2 text-blue-800">
               <li className="flex items-center">
                 <Check className="w-4 h-4 mr-2 text-green-600" />
-                Assistant IA automatique
+                Assistant personnel qui réponds à vos emails
               </li>
               <li className="flex items-center">
                 <Check className="w-4 h-4 mr-2 text-green-600" />
-                Connexion multi-canaux
+                Fixe et modifie vos rendez-vous
               </li>
               <li className="flex items-center">
                 <Check className="w-4 h-4 mr-2 text-green-600" />
-                Workflow N8N personnalisé
+                Publie sur vos réseaux sociaux
               </li>
               <li className="flex items-center">
                 <Check className="w-4 h-4 mr-2 text-green-600" />
-                Support client inclus
+                Réponds aux demandes venant de vos réseaux sociaux
               </li>
             </ul>
           </div>
