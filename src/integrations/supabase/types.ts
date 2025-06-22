@@ -379,6 +379,48 @@ export type Database = {
         }
         Relationships: []
       }
+      signup_process: {
+        Row: {
+          business_name: string
+          created_at: string
+          email: string
+          email_verified: boolean
+          id: string
+          payment_completed: boolean
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          verification_expires_at: string | null
+          verification_token: string | null
+        }
+        Insert: {
+          business_name: string
+          created_at?: string
+          email: string
+          email_verified?: boolean
+          id?: string
+          payment_completed?: boolean
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          verification_expires_at?: string | null
+          verification_token?: string | null
+        }
+        Update: {
+          business_name?: string
+          created_at?: string
+          email?: string
+          email_verified?: boolean
+          id?: string
+          payment_completed?: boolean
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          verification_expires_at?: string | null
+          verification_token?: string | null
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           autopilot: boolean | null

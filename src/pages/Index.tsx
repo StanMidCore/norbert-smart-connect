@@ -1,20 +1,34 @@
 
-import { useState } from 'react';
-import ActivationScreen from '@/components/ActivationScreen';
+import { useState, useEffect } from 'react';
+import SignupFlow from '@/components/SignupFlow';
 import ChannelSetup from '@/components/ChannelSetup';
 import ProfileSetup from '@/components/ProfileSetup';
 import Dashboard from '@/components/Dashboard';
 import ClientDetail from '@/components/ClientDetail';
 
-type AppScreen = 'activation' | 'channels' | 'profile' | 'dashboard' | 'calendar' | 'clients' | 'settings' | 'client-detail';
+type AppScreen = 'signup' | 'channels' | 'profile' | 'dashboard' | 'calendar' | 'clients' | 'settings' | 'client-detail';
 
 const Index = () => {
-  const [currentScreen, setCurrentScreen] = useState<AppScreen>('activation');
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>('signup');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   
-  const handleActivationSuccess = () => {
-    setCurrentScreen('channels');
-  };
+  // Vérifier les paramètres URL au chargement
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentSuccess = urlParams.get('payment_success');
+    const paymentError = urlParams.get('payment_error');
+    
+    if (paymentSuccess === 'true') {
+      // Paiement réussi, aller aux canaux
+      setCurrentScreen('channels');
+      // Nettoyer l'URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (paymentError === 'true') {
+      // Erreur de paiement, rester sur signup
+      setCurrentScreen('signup');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
   
   const handleChannelSetupComplete = () => {
     setCurrentScreen('profile');
@@ -38,15 +52,23 @@ const Index = () => {
     setCurrentScreen('dashboard');
   };
 
-  // Écrans de configuration
-  if (currentScreen === 'activation') {
-    return <ActivationScreen onActivationSuccess={handleActivationSuccess} />;
+  // Écran d'inscription
+  if (currentScreen === 'signup') {
+    return (
+      <SignupFlow 
+        onComplete={() => setCurrentScreen('dashboard')}
+        onChannelSetup={() => setCurrentScreen('channels')}
+        onProfileSetup={() => setCurrentScreen('profile')}
+      />
+    );
   }
   
+  // Écran configuration canaux
   if (currentScreen === 'channels') {
     return <ChannelSetup onComplete={handleChannelSetupComplete} />;
   }
   
+  // Écran configuration profil
   if (currentScreen === 'profile') {
     return <ProfileSetup onComplete={handleProfileSetupComplete} />;
   }
@@ -61,7 +83,7 @@ const Index = () => {
     );
   }
   
-  // Écran principal et navigation
+  // Écran principal dashboard
   if (currentScreen === 'dashboard') {
     return (
       <Dashboard 
@@ -131,7 +153,13 @@ const Index = () => {
     );
   }
 
-  return <Dashboard onNavigate={handleNavigation} onClientDetail={handleClientDetail} />;
+  return (
+    <SignupFlow 
+      onComplete={() => setCurrentScreen('dashboard')}
+      onChannelSetup={() => setCurrentScreen('channels')}
+      onProfileSetup={() => setCurrentScreen('profile')}
+    />
+  );
 };
 
 export default Index;
