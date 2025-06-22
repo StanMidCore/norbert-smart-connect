@@ -39,6 +39,25 @@ serve(async (req) => {
     console.log('Connexion compte Unipile pour provider:', provider);
     console.log('Clé API présente:', unipileApiKey ? 'Oui' : 'Non');
 
+    // Mapping des providers vers les noms attendus par Unipile
+    const providerMapping: { [key: string]: string } = {
+      'gmail': 'GOOGLE',
+      'outlook': 'OUTLOOK', 
+      'facebook': 'MESSENGER',
+      'instagram': 'INSTAGRAM',
+      'whatsapp': 'WHATSAPP'
+    };
+
+    const unipileProvider = providerMapping[provider.toLowerCase()];
+    if (!unipileProvider) {
+      return new Response(JSON.stringify({ 
+        error: `Provider ${provider} non supporté`
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Pour les providers OAuth (Gmail, Outlook, Facebook), on utilise l'API d'autorisation hébergée
     if (['gmail', 'outlook', 'facebook'].includes(provider.toLowerCase())) {
       console.log('Utilisation de l\'API d\'autorisation hébergée pour:', provider);
@@ -59,7 +78,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           type: "create",
-          providers: [provider.toUpperCase()],
+          providers: [unipileProvider],
           expiresOn: expirationISO,
           api_url: "https://api2.unipile.com:13279",
           success_redirect_url: `${origin}/channels?success=true`,
