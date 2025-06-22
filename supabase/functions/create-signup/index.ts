@@ -58,11 +58,11 @@ serve(async (req) => {
       throw signupError;
     }
 
-    // Envoyer l'email de vérification
+    // Envoyer l'email de vérification avec le domaine par défaut
     const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
     
     const emailResult = await resend.emails.send({
-      from: 'Norbert <noreply@norbert.ai>',
+      from: 'Norbert <onboarding@resend.dev>',
       to: [email],
       subject: 'Vérifiez votre adresse email - Norbert',
       html: `

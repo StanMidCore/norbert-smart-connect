@@ -67,11 +67,11 @@ serve(async (req) => {
       throw updateError;
     }
 
-    // Renvoyer l'email
+    // Renvoyer l'email avec le domaine par défaut
     const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
     
     await resend.emails.send({
-      from: 'Norbert <noreply@norbert.ai>',
+      from: 'Norbert <onboarding@resend.dev>',
       to: [signup.email],
       subject: 'Nouveau code de vérification - Norbert',
       html: `
