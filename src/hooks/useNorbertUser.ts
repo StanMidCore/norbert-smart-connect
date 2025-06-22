@@ -5,7 +5,7 @@ import type { User } from '@/types/norbert';
 
 export const useNorbertUser = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const createOrGetUser = async (email: string, phoneNumber?: string) => {
@@ -26,6 +26,7 @@ export const useNorbertUser = () => {
         throw new Error(data.error || 'Erreur création utilisateur');
       }
 
+      console.log('Utilisateur créé/récupéré:', data.user);
       setUser(data.user);
       return data.user;
     } catch (err) {
@@ -49,8 +50,17 @@ export const useNorbertUser = () => {
         .eq('email', 'demo@norbert.ai')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Si l'utilisateur n'existe pas, ce n'est pas une erreur critique
+        if (error.code === 'PGRST116') {
+          console.log('Aucun utilisateur demo trouvé');
+          setUser(null);
+          return null;
+        }
+        throw error;
+      }
       
+      console.log('Utilisateur actuel trouvé:', data);
       setUser(data);
       return data;
     } catch (err) {

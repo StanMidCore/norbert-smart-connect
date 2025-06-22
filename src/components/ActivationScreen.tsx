@@ -1,91 +1,168 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Bot, Smartphone } from 'lucide-react';
+import { Loader2, Zap } from 'lucide-react';
+import { useNorbertUser } from '@/hooks/useNorbertUser';
+import { useToast } from '@/hooks/use-toast';
 
 interface ActivationScreenProps {
   onActivationSuccess: () => void;
 }
 
 const ActivationScreen = ({ onActivationSuccess }: ActivationScreenProps) => {
-  const [activationCode, setActivationCode] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState('demo@norbert.ai');
+  const [phoneNumber, setPhoneNumber] = useState('+33123456789');
+  const { user, loading, error, createOrGetUser } = useNorbertUser();
+  const { toast } = useToast();
+  const [activating, setActivating] = useState(false);
 
-  const handleActivation = async () => {
-    if (!activationCode.trim()) {
-      setError('Veuillez saisir votre code d\'activation');
+  // Si l'utilisateur existe déjà, passer automatiquement à l'étape suivante
+  useEffect(() => {
+    if (user && !activating) {
+      console.log('Utilisateur déjà connecté, passage à l\'étape suivante');
+      onActivationSuccess();
+    }
+  }, [user, activating, onActivationSuccess]);
+
+  const handleActivation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email.trim()) {
+      toast({
+        title: "Email requis",
+        description: "Veuillez saisir votre adresse email",
+        variant: "destructive",
+      });
       return;
     }
 
-    setIsLoading(true);
-    setError('');
-
-    // Simulation de la vérification du code
-    setTimeout(() => {
-      if (activationCode === 'DEMO2024' || activationCode.length >= 6) {
-        onActivationSuccess();
-      } else {
-        setError('Code d\'activation invalide');
+    setActivating(true);
+    
+    try {
+      const result = await createOrGetUser(email.trim(), phoneNumber?.trim());
+      
+      if (result) {
+        toast({
+          title: "Activation réussie !",
+          description: `Bienvenue ${result.email} ! Votre compte Norbert est prêt.`,
+        });
+        
+        // Attendre un peu avant de passer à l'étape suivante
+        setTimeout(() => {
+          onActivationSuccess();
+        }, 1500);
       }
-      setIsLoading(false);
-    }, 1500);
+    } catch (err) {
+      console.error('Erreur activation:', err);
+      toast({
+        title: "Erreur d'activation",
+        description: "Impossible d'activer votre compte. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    } finally {
+      setActivating(false);
+    }
   };
 
+  if (loading && !activating) {
+    return (
+      <div className="min-h-screen bg-app-bg p-4 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-main">Vérification de votre compte...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-app-bg p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="bg-header-bg p-3 rounded-full">
-              <Bot className="h-8 w-8 text-header-text" />
+    <div className="min-h-screen bg-app-bg p-4 flex items-center justify-center">
+      <div className="max-w-md w-full">
+        <div className="text-center mb-8">
+          <div className="bg-cta text-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Zap className="h-8 w-8" />
+          </div>
+          <h1 className="text-3xl font-bold text-main mb-2">
+            Activez Norbert
+          </h1>
+          <p className="text-main opacity-70">
+            Votre assistant IA pour la gestion de vos communications
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl text-main">Commencer</CardTitle>
+            <CardDescription className="text-main opacity-70">
+              Créez ou accédez à votre compte Norbert
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleActivation} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="email" className="text-sm font-medium text-main">
+                  Adresse email *
+                </label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="votre@email.com"
+                  className="w-full"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="phone" className="text-sm font-medium text-main">
+                  Numéro de téléphone (optionnel)
+                </label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="+33123456789"
+                  className="w-full"
+                />
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+              )}
+
+              <Button 
+                type="submit" 
+                className="w-full bg-cta hover:bg-cta/90"
+                disabled={activating || loading}
+              >
+                {activating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Activation en cours...
+                  </>
+                ) : (
+                  'Activer Norbert'
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h3 className="font-medium text-blue-900 mb-2">🚀 Prêt en 3 étapes</h3>
+              <ol className="text-sm text-blue-700 space-y-1">
+                <li>1. Activez votre compte</li>
+                <li>2. Connectez vos canaux (WhatsApp, Email...)</li>
+                <li>3. Configurez votre profil IA</li>
+              </ol>
             </div>
-          </div>
-          <CardTitle className="text-2xl font-bold text-main">
-            Bienvenue sur Norbert
-          </CardTitle>
-          <CardDescription className="text-main">
-            Votre assistant IA multicanal pour ne plus jamais rater un client
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="activation-code" className="text-main">Code d'activation</Label>
-            <Input
-              id="activation-code"
-              type="text"
-              placeholder="Saisissez votre code"
-              value={activationCode}
-              onChange={(e) => setActivationCode(e.target.value.toUpperCase())}
-              className="text-center tracking-wider"
-            />
-            {error && (
-              <p className="text-sm text-alert">{error}</p>
-            )}
-          </div>
-          
-          <Button 
-            onClick={handleActivation} 
-            className="w-full bg-cta hover:bg-cta/90" 
-            disabled={isLoading}
-          >
-            {isLoading ? 'Activation en cours...' : 'Activer mon compte'}
-          </Button>
-
-          <div className="text-center text-sm text-main">
-            <p>Vous avez reçu votre code par email après votre achat.</p>
-            <p className="mt-1 text-cta">Code de démo : DEMO2024</p>
-          </div>
-
-          <div className="flex items-center justify-center space-x-2 text-xs text-main opacity-70">
-            <Smartphone className="h-4 w-4" />
-            <span>Disponible sur iOS et Android</span>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
