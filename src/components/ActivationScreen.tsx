@@ -18,11 +18,13 @@ const ActivationScreen = ({ onActivationSuccess }: ActivationScreenProps) => {
   const { toast } = useToast();
   const [activating, setActivating] = useState(false);
 
-  // Si l'utilisateur existe déjà, passer automatiquement à l'étape suivante
+  // If user exists, go to next step
   useEffect(() => {
     if (user && !activating) {
-      console.log('Utilisateur déjà connecté, passage à l\'étape suivante');
-      onActivationSuccess();
+      console.log('Utilisateur trouvé, passage à l\'étape suivante');
+      setTimeout(() => {
+        onActivationSuccess();
+      }, 500);
     }
   }, [user, activating, onActivationSuccess]);
 
@@ -46,13 +48,13 @@ const ActivationScreen = ({ onActivationSuccess }: ActivationScreenProps) => {
       if (result) {
         toast({
           title: "Activation réussie !",
-          description: `Bienvenue ${result.email} ! Votre compte Norbert est prêt.`,
+          description: `Bienvenue ${result.email} !`,
         });
         
-        // Attendre un peu avant de passer à l'étape suivante
+        // Navigate after short delay
         setTimeout(() => {
           onActivationSuccess();
-        }, 1500);
+        }, 1000);
       }
     } catch (err) {
       console.error('Erreur activation:', err);
@@ -64,6 +66,11 @@ const ActivationScreen = ({ onActivationSuccess }: ActivationScreenProps) => {
     } finally {
       setActivating(false);
     }
+  };
+
+  const handleSkipToChannels = () => {
+    console.log('Navigation directe vers les canaux');
+    onActivationSuccess();
   };
 
   if (loading && !activating) {
@@ -136,20 +143,32 @@ const ActivationScreen = ({ onActivationSuccess }: ActivationScreenProps) => {
                 </div>
               )}
 
-              <Button 
-                type="submit" 
-                className="w-full bg-cta hover:bg-cta/90"
-                disabled={activating || loading}
-              >
-                {activating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Activation en cours...
-                  </>
-                ) : (
-                  'Activer Norbert'
-                )}
-              </Button>
+              <div className="space-y-2">
+                <Button 
+                  type="submit" 
+                  className="w-full bg-cta hover:bg-cta/90"
+                  disabled={activating || loading}
+                >
+                  {activating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Activation en cours...
+                    </>
+                  ) : (
+                    'Activer Norbert'
+                  )}
+                </Button>
+
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleSkipToChannels}
+                  disabled={activating || loading}
+                >
+                  Passer à la configuration des canaux
+                </Button>
+              </div>
             </form>
 
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">

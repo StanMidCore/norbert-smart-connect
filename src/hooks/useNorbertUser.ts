@@ -13,10 +13,24 @@ export const useNorbertUser = () => {
     setError(null);
     
     try {
+      // First try to get user directly from database
+      const { data: existingUser, error: fetchError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email.trim())
+        .single();
+
+      if (existingUser && !fetchError) {
+        console.log('Utilisateur existant trouvé directement:', existingUser);
+        setUser(existingUser);
+        return existingUser;
+      }
+
+      // If user doesn't exist, create via edge function
       const { data, error } = await supabase.functions.invoke('create-user-account', {
         body: { 
-          email: email,
-          phone_number: phoneNumber 
+          email: email.trim(),
+          phone_number: phoneNumber?.trim() 
         }
       });
 
@@ -26,13 +40,34 @@ export const useNorbertUser = () => {
         throw new Error(data.error || 'Erreur création utilisateur');
       }
 
-      console.log('Utilisateur créé/récupéré:', data.user);
+      console.log('Utilisateur créé:', data.user);
       setUser(data.user);
       return data.user;
     } catch (err) {
       console.error('Erreur createOrGetUser:', err);
-      setError(err instanceof Error ? err.message : 'Erreur inconnue');
-      return null;
+      
+      // Fallback: try to create user directly in database
+      try {
+        const { data: newUser, error: insertError } = await supabase
+          .from('users')
+          .upsert({
+            email: email.trim(),
+            phone_number: phoneNumber?.trim(),
+            autopilot: true
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        
+        console.log('Utilisateur créé en fallback:', newUser);
+        setUser(newUser);
+        return newUser;
+      } catch (fallbackErr) {
+        console.error('Erreur fallback:', fallbackErr);
+        setError(fallbackErr instanceof Error ? fallbackErr.message : 'Erreur inconnue');
+        return null;
+      }
     } finally {
       setLoading(false);
     }
@@ -43,29 +78,27 @@ export const useNorbertUser = () => {
     setError(null);
     
     try {
-      // Pour le moment, on utilise l'utilisateur démo
+      // Try to get demo user first
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('email', 'demo@norbert.ai')
         .single();
 
-      if (error) {
-        // Si l'utilisateur n'existe pas, ce n'est pas une erreur critique
-        if (error.code === 'PGRST116') {
-          console.log('Aucun utilisateur demo trouvé');
-          setUser(null);
-          return null;
-        }
-        throw error;
+      if (data && !error) {
+        console.log('Utilisateur demo trouvé:', data);
+        setUser(data);
+        return data;
       }
-      
-      console.log('Utilisateur actuel trouvé:', data);
-      setUser(data);
-      return data;
+
+      // If no demo user, that's OK
+      console.log('Aucun utilisateur demo, prêt pour création');
+      setUser(null);
+      return null;
     } catch (err) {
       console.error('Erreur getCurrentUser:', err);
-      setError(err instanceof Error ? err.message : 'Erreur inconnue');
+      // Don't set error for missing demo user
+      setUser(null);
       return null;
     } finally {
       setLoading(false);
