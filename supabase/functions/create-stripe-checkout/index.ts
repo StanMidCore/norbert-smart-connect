@@ -48,10 +48,14 @@ serve(async (req) => {
       });
     }
 
-    const stripeKey = Deno.env.get('pk_live_KTfEvs7v5CNVY8MjKuPNUFma');
+    // Utiliser la clé secrète Stripe correcte
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
     if (!stripeKey) {
+      console.error('Clé Stripe secrète non configurée');
       throw new Error('Clé Stripe non configurée');
     }
+
+    console.log('Création session Stripe pour:', email);
 
     // Créer une session Stripe Checkout
     const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -81,12 +85,12 @@ serve(async (req) => {
     if (!stripeResponse.ok) {
       const errorText = await stripeResponse.text();
       console.error('Erreur Stripe:', errorText);
-      throw new Error('Erreur lors de la création de la session Stripe');
+      throw new Error(`Erreur Stripe: ${errorText}`);
     }
 
     const session = await stripeResponse.json();
 
-    console.log('Session Stripe créée:', session.id);
+    console.log('Session Stripe créée avec succès:', session.id);
 
     return new Response(JSON.stringify({ 
       success: true,
