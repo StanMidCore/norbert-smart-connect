@@ -13,9 +13,21 @@ serve(async (req) => {
   }
 
   try {
-    const unipileApiKey = 'E/f3wD65./cyZGhVVeFRacYQS7Gjl2qy+PMcVGamxIwDxJQtTuWo=';
+    // Récupération de la clé API depuis les secrets Supabase
+    const unipileApiKey = Deno.env.get('UNIPILE_API_KEY');
+    if (!unipileApiKey) {
+      console.error('Clé API Unipile manquante dans les secrets');
+      return new Response(JSON.stringify({ 
+        error: 'Configuration manquante: clé API Unipile non configurée',
+        success: false 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     
     console.log('Récupération des comptes Unipile...');
+    console.log('Clé API présente:', unipileApiKey ? 'Oui' : 'Non');
 
     const response = await fetch('https://api2.unipile.com:13279/api/v1/accounts', {
       method: 'GET',
@@ -29,7 +41,8 @@ serve(async (req) => {
     console.log('Réponse Unipile complète:', accountsData);
 
     if (!response.ok) {
-      throw new Error(`Erreur API Unipile: ${accountsData.message || 'Erreur inconnue'}`);
+      console.error('Erreur API Unipile:', accountsData);
+      throw new Error(`Erreur API Unipile: ${accountsData.message || accountsData.detail || 'Erreur inconnue'}`);
     }
 
     // Extraire le tableau d'accounts depuis la structure de réponse Unipile

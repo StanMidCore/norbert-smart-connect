@@ -24,10 +24,20 @@ serve(async (req) => {
       });
     }
 
-    // IMPORTANTE: Utilisez votre vraie clé API Unipile ici
-    const unipileApiKey = Deno.env.get('UNIPILE_API_KEY') || 'YOUR_REAL_UNIPILE_API_KEY_HERE';
+    // Récupération de la clé API depuis les secrets Supabase
+    const unipileApiKey = Deno.env.get('UNIPILE_API_KEY');
+    if (!unipileApiKey) {
+      console.error('Clé API Unipile manquante dans les secrets');
+      return new Response(JSON.stringify({ 
+        error: 'Configuration manquante: clé API Unipile non configurée' 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     
     console.log('Connexion compte Unipile pour provider:', provider);
+    console.log('Clé API présente:', unipileApiKey ? 'Oui' : 'Non');
 
     // Pour les providers OAuth (Gmail, Outlook, Facebook), on utilise l'API d'autorisation hébergée
     if (['gmail', 'outlook', 'facebook'].includes(provider.toLowerCase())) {
