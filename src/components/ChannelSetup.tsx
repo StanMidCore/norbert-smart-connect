@@ -43,6 +43,31 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     { id: 'facebook', name: 'Facebook', description: 'Messages Facebook' },
   ];
 
+  // Vérifier les paramètres URL pour les redirections OAuth
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const connection = urlParams.get('connection');
+    const provider = urlParams.get('provider');
+    
+    if (connection === 'success' && provider) {
+      toast({
+        title: "Connexion réussie",
+        description: `Votre compte ${provider} a été connecté avec succès`,
+      });
+      // Nettoyer l'URL et actualiser les comptes
+      window.history.replaceState({}, '', window.location.pathname);
+      fetchAccounts();
+    } else if (connection === 'failed' && provider) {
+      toast({
+        title: "Échec de la connexion",
+        description: `Impossible de connecter votre compte ${provider}`,
+        variant: "destructive",
+      });
+      // Nettoyer l'URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [toast, fetchAccounts]);
+
   useEffect(() => {
     if (channels.length > 0) {
       const normalizedChannels: Channel[] = channels
@@ -99,8 +124,8 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
       console.error('Erreur connexion:', error);
       let errorMessage = `Impossible de connecter ${provider}. `;
       
-      if (error.message?.includes('Invalid credentials')) {
-        errorMessage += 'Clé API Unipile invalide. Veuillez vérifier votre configuration.';
+      if (error.message?.includes('Invalid credentials') || error.message?.includes('Configuration manquante')) {
+        errorMessage += 'Clé API Unipile invalide ou manquante. Veuillez vérifier votre configuration.';
       } else if (error.message?.includes('non-2xx status code')) {
         errorMessage += 'Erreur de configuration du serveur. Veuillez réessayer plus tard.';
       } else {
@@ -146,14 +171,6 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
               <div className="text-red-600 text-sm">
                 <p className="font-medium">Erreur de connexion</p>
                 <p>{error}</p>
-                {error.includes('Invalid credentials') && (
-                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                    <p className="text-yellow-800 text-xs">
-                      💡 <strong>Solution :</strong> La clé API Unipile n'est pas configurée correctement. 
-                      Veuillez vérifier votre configuration dans les secrets Supabase.
-                    </p>
-                  </div>
-                )}
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -190,9 +207,10 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
                     console.error('Erreur chargement QR code:', e);
                     toast({
                       title: "Erreur QR Code",
-                      description: "Impossible de charger le QR code. Veuillez réessayer.",
+                      description: "Format QR code invalide. Veuillez réessayer.",
                       variant: "destructive",
                     });
+                    setQrCode(null);
                   }}
                 />
               </div>
@@ -299,26 +317,6 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
               );
             })}
         </div>
-
-        {/* Configuration info */}
-        <Card className="mb-6 border-blue-200">
-          <CardHeader>
-            <CardTitle className="text-lg text-main">ℹ️ Information importante</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm">
-              <p className="text-main opacity-70">
-                Pour que les connexions fonctionnent, vous devez :
-              </p>
-              <ul className="list-disc list-inside space-y-1 text-main opacity-70">
-                <li>Configurer votre vraie clé API Unipile dans les secrets Supabase</li>
-                <li>Avoir un compte Unipile actif</li>
-                <li>WhatsApp nécessite WhatsApp Business</li>
-                <li>Pour Gmail/Outlook/Facebook: vous serez redirigé vers la page d'autorisation</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
 
         {connectedChannels.length > 0 && (
           <Card className="mb-6">
