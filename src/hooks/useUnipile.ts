@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -48,18 +47,33 @@ export const useUnipile = () => {
 
       console.log('Canaux trouvés:', channelsData?.length || 0);
 
-      // Format channels
-      const formattedChannels = (channelsData || []).map(channel => ({
-        id: channel.id,
-        unipile_account_id: channel.unipile_account_id,
-        channel_type: channel.channel_type,
-        status: channel.status,
-        provider_info: channel.provider_info || {
-          provider: channel.channel_type.toUpperCase(),
-          identifier: channel.unipile_account_id,
-          name: `Compte ${channel.channel_type.charAt(0).toUpperCase() + channel.channel_type.slice(1)}`
+      // Format channels with proper typing
+      const formattedChannels: UnipileChannel[] = (channelsData || []).map(channel => {
+        // Handle provider_info which can be null or various Json types
+        let providerInfo;
+        if (channel.provider_info && typeof channel.provider_info === 'object' && !Array.isArray(channel.provider_info)) {
+          const info = channel.provider_info as Record<string, any>;
+          providerInfo = {
+            provider: info.provider || channel.channel_type.toUpperCase(),
+            identifier: info.identifier || channel.unipile_account_id,
+            name: info.name || `Compte ${channel.channel_type.charAt(0).toUpperCase() + channel.channel_type.slice(1)}`
+          };
+        } else {
+          providerInfo = {
+            provider: channel.channel_type.toUpperCase(),
+            identifier: channel.unipile_account_id,
+            name: `Compte ${channel.channel_type.charAt(0).toUpperCase() + channel.channel_type.slice(1)}`
+          };
         }
-      }));
+
+        return {
+          id: channel.id,
+          unipile_account_id: channel.unipile_account_id,
+          channel_type: channel.channel_type,
+          status: channel.status,
+          provider_info: providerInfo
+        };
+      });
 
       setChannels(formattedChannels);
       setAccounts([]);
