@@ -1,10 +1,10 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Zap } from 'lucide-react';
-import { useNorbertUser } from '@/hooks/useNorbertUser';
+import { Loader2, Zap, Key, Mail } from 'lucide-react';
+import { useActivation } from '@/hooks/useActivation';
 import { useToast } from '@/hooks/use-toast';
 
 interface ActivationScreenProps {
@@ -12,23 +12,14 @@ interface ActivationScreenProps {
 }
 
 const ActivationScreen = ({ onActivationSuccess }: ActivationScreenProps) => {
+  const [step, setStep] = useState<'request' | 'activate'>('request');
   const [email, setEmail] = useState('demo@norbert.ai');
   const [phoneNumber, setPhoneNumber] = useState('+33123456789');
-  const { user, loading, error, createOrGetUser } = useNorbertUser();
+  const [activationCode, setActivationCode] = useState('');
+  const { loading, error, generateActivationCode, activateAccount } = useActivation();
   const { toast } = useToast();
-  const [activating, setActivating] = useState(false);
 
-  // If user exists, go to next step
-  useEffect(() => {
-    if (user && !activating) {
-      console.log('Utilisateur trouvé, passage à l\'étape suivante');
-      setTimeout(() => {
-        onActivationSuccess();
-      }, 500);
-    }
-  }, [user, activating, onActivationSuccess]);
-
-  const handleActivation = async (e: React.FormEvent) => {
+  const handleRequestCode = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email.trim()) {
@@ -40,144 +31,215 @@ const ActivationScreen = ({ onActivationSuccess }: ActivationScreenProps) => {
       return;
     }
 
-    setActivating(true);
-    
     try {
-      const result = await createOrGetUser(email.trim(), phoneNumber?.trim());
+      await generateActivationCode(email.trim(), phoneNumber?.trim());
       
-      if (result) {
-        toast({
-          title: "Activation réussie !",
-          description: `Bienvenue ${result.email} !`,
-        });
-        
-        // Navigate after short delay
-        setTimeout(() => {
-          onActivationSuccess();
-        }, 1000);
-      }
-    } catch (err) {
-      console.error('Erreur activation:', err);
+      setStep('activate');
       toast({
-        title: "Erreur d'activation",
-        description: "Impossible d'activer votre compte. Veuillez réessayer.",
+        title: "Code envoyé !",
+        description: "Vérifiez vos emails pour récupérer votre code d'activation",
+      });
+    } catch (err) {
+      console.error('Erreur demande code:', err);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'envoyer le code. Veuillez réessayer.",
         variant: "destructive",
       });
-    } finally {
-      setActivating(false);
     }
   };
 
-  const handleSkipToChannels = () => {
-    console.log('Navigation directe vers les canaux');
-    onActivationSuccess();
+  const handleActivation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!activationCode.trim()) {
+      toast({
+        title: "Code requis",
+        description: "Veuillez saisir votre code d'activation",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const result = await activateAccount(email.trim(), activationCode.trim());
+      
+      toast({
+        title: "Activation réussie !",
+        description: `Bienvenue ${result.user.email} ! Norbert est maintenant actif.`,
+      });
+      
+      setTimeout(() => {
+        onActivationSuccess();
+      }, 1000);
+    } catch (err) {
+      console.error('Erreur activation:', err);
+      toast({
+        title: "Code invalide",
+        description: "Le code d'activation est incorrect ou a expiré. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    }
   };
 
-  if (loading && !activating) {
-    return (
-      <div className="min-h-screen bg-app-bg p-4 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-main">Vérification de votre compte...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleBackToRequest = () => {
+    setStep('request');
+    setActivationCode('');
+  };
 
   return (
     <div className="min-h-screen bg-app-bg p-4 flex items-center justify-center">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <div className="bg-cta text-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Zap className="h-8 w-8" />
+            {step === 'request' ? <Mail className="h-8 w-8" /> : <Key className="h-8 w-8" />}
           </div>
           <h1 className="text-3xl font-bold text-main mb-2">
-            Activez Norbert
+            {step === 'request' ? 'Activez Norbert' : 'Saisissez votre code'}
           </h1>
           <p className="text-main opacity-70">
-            Votre assistant IA pour la gestion de vos communications
+            {step === 'request' 
+              ? 'Votre assistant IA pour la gestion de vos communications'
+              : 'Entrez le code reçu par email pour activer votre compte'
+            }
           </p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl text-main">Commencer</CardTitle>
+            <CardTitle className="text-xl text-main">
+              {step === 'request' ? 'Demander un code d\'activation' : 'Activation du compte'}
+            </CardTitle>
             <CardDescription className="text-main opacity-70">
-              Créez ou accédez à votre compte Norbert
+              {step === 'request' 
+                ? 'Un code d\'activation vous sera envoyé par email'
+                : 'Le code est valide 24h après l\'envoi'
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleActivation} className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-main">
-                  Adresse email *
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="votre@email.com"
-                  className="w-full"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="phone" className="text-sm font-medium text-main">
-                  Numéro de téléphone (optionnel)
-                </label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="+33123456789"
-                  className="w-full"
-                />
-              </div>
-
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                  <p className="text-red-600 text-sm">{error}</p>
+            {step === 'request' ? (
+              <form onSubmit={handleRequestCode} className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="email" className="text-sm font-medium text-main">
+                    Adresse email *
+                  </label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="votre@email.com"
+                    className="w-full"
+                    required
+                  />
                 </div>
-              )}
 
-              <div className="space-y-2">
+                <div className="space-y-2">
+                  <label htmlFor="phone" className="text-sm font-medium text-main">
+                    Numéro de téléphone (optionnel)
+                  </label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="+33123456789"
+                    className="w-full"
+                  />
+                </div>
+
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                    <p className="text-red-600 text-sm">{error}</p>
+                  </div>
+                )}
+
                 <Button 
                   type="submit" 
                   className="w-full bg-cta hover:bg-cta/90"
-                  disabled={activating || loading}
+                  disabled={loading}
                 >
-                  {activating ? (
+                  {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Activation en cours...
+                      Génération du code...
                     </>
                   ) : (
-                    'Activer Norbert'
+                    <>
+                      <Mail className="h-4 w-4 mr-2" />
+                      Recevoir le code par email
+                    </>
                   )}
                 </Button>
+              </form>
+            ) : (
+              <form onSubmit={handleActivation} className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="activation-code" className="text-sm font-medium text-main">
+                    Code d'activation
+                  </label>
+                  <Input
+                    id="activation-code"
+                    type="text"
+                    value={activationCode}
+                    onChange={(e) => setActivationCode(e.target.value)}
+                    placeholder="Saisissez votre code ici"
+                    className="w-full text-center text-lg font-mono tracking-wider"
+                    maxLength={30}
+                    required
+                  />
+                  <p className="text-xs text-main opacity-60 text-center">
+                    Code envoyé à : {email}
+                  </p>
+                </div>
 
-                <Button 
-                  type="button" 
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleSkipToChannels}
-                  disabled={activating || loading}
-                >
-                  Passer à la configuration des canaux
-                </Button>
-              </div>
-            </form>
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                    <p className="text-red-600 text-sm">{error}</p>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-cta hover:bg-cta/90"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Activation en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="h-4 w-4 mr-2" />
+                        Activer mon compte
+                      </>
+                    )}
+                  </Button>
+
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleBackToRequest}
+                    disabled={loading}
+                  >
+                    Demander un nouveau code
+                  </Button>
+                </div>
+              </form>
+            )}
 
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h3 className="font-medium text-blue-900 mb-2">🚀 Prêt en 3 étapes</h3>
-              <ol className="text-sm text-blue-700 space-y-1">
-                <li>1. Activez votre compte</li>
-                <li>2. Connectez vos canaux (WhatsApp, Email...)</li>
-                <li>3. Configurez votre profil IA</li>
-              </ol>
+              <h3 className="font-medium text-blue-900 mb-2">🤖 Configuration automatique</h3>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>✅ Compte Unipile créé automatiquement</li>
+                <li>✅ Workflow N8N configuré et déployé</li>
+                <li>✅ Canaux de communication connectés</li>
+                <li>✅ Assistant IA prêt à fonctionner</li>
+              </ul>
             </div>
           </CardContent>
         </Card>
