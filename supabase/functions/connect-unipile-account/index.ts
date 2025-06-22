@@ -45,6 +45,11 @@ serve(async (req) => {
       
       const origin = req.headers.get('origin') || 'http://localhost:3000';
       
+      // Calculer la date d'expiration (24h à partir de maintenant)
+      const expiresOn = new Date();
+      expiresOn.setHours(expiresOn.getHours() + 24);
+      const expirationISO = expiresOn.toISOString();
+      
       const authResponse = await fetch('https://api2.unipile.com:13279/api/v1/hosted/accounts/link', {
         method: 'POST',
         headers: {
@@ -53,9 +58,12 @@ serve(async (req) => {
           'accept': 'application/json'
         },
         body: JSON.stringify({
+          type: "create",
           providers: [provider.toUpperCase()],
-          success_callback_url: `${origin}/channels?success=true`,
-          error_callback_url: `${origin}/channels?error=connection_failed`
+          expiresOn: expirationISO,
+          api_url: "https://api2.unipile.com:13279",
+          success_redirect_url: `${origin}/channels?success=true`,
+          failure_redirect_url: `${origin}/channels?error=connection_failed`
         })
       });
 
