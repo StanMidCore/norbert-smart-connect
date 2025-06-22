@@ -76,12 +76,12 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           description: "Scannez le QR code avec WhatsApp pour connecter votre compte",
         });
       } else if (result.authorization_url) {
-        // Pour les autres providers, ouvrir l'URL d'autorisation
-        window.open(result.authorization_url, '_blank');
+        // Pour les autres providers, la redirection se fait automatiquement
         toast({
-          title: "Autorisation ouverte",
-          description: "Complétez l'autorisation dans le nouvel onglet, puis actualisez cette page",
+          title: "Redirection en cours...",
+          description: "Vous allez être redirigé vers la page d'autorisation",
         });
+        // La redirection se fait dans useUnipile.connectAccount
       } else if (result.requires_manual_setup) {
         toast({
           title: "Configuration manuelle requise",
@@ -93,7 +93,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           title: "Connexion réussie",
           description: `Votre compte ${provider} a été connecté`,
         });
-        await fetchAccounts(); // Refresh the list
+        await fetchAccounts();
       }
     } catch (error) {
       console.error('Erreur connexion:', error);
@@ -181,20 +181,41 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center">
-              <div className="bg-white p-4 rounded-lg inline-block">
-                <img src={`data:image/png;base64,${qrCode}`} alt="QR Code WhatsApp" className="max-w-48 mx-auto" />
+              <div className="bg-white p-4 rounded-lg inline-block border-2 border-gray-200">
+                <img 
+                  src={`data:image/png;base64,${qrCode}`} 
+                  alt="QR Code WhatsApp" 
+                  className="w-64 h-64 mx-auto"
+                  onError={(e) => {
+                    console.error('Erreur chargement QR code:', e);
+                    toast({
+                      title: "Erreur QR Code",
+                      description: "Impossible de charger le QR code. Veuillez réessayer.",
+                      variant: "destructive",
+                    });
+                  }}
+                />
               </div>
               <p className="text-sm text-main opacity-70 mt-2">
                 Le QR code expire après quelques minutes
               </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setQrCode(null)}
-                className="mt-2"
-              >
-                Fermer
-              </Button>
+              <div className="flex gap-2 justify-center mt-4">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => handleConnectProvider('whatsapp')}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Régénérer
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setQrCode(null)}
+                >
+                  Fermer
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -293,6 +314,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
                 <li>Configurer votre vraie clé API Unipile dans les secrets Supabase</li>
                 <li>Avoir un compte Unipile actif</li>
                 <li>WhatsApp nécessite WhatsApp Business</li>
+                <li>Pour Gmail/Outlook/Facebook: vous serez redirigé vers la page d'autorisation</li>
               </ul>
             </div>
           </CardContent>

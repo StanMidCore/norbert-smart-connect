@@ -63,9 +63,11 @@ export const useUnipile = () => {
         throw new Error(data.error || 'Erreur connexion compte');
       }
 
-      // Ouvrir l'URL d'autorisation dans un nouvel onglet
+      // Pour les providers OAuth, rediriger vers l'URL d'autorisation dans la même fenêtre
       if (data.authorization_url) {
-        window.open(data.authorization_url, '_blank');
+        console.log('Redirection vers:', data.authorization_url);
+        window.location.href = data.authorization_url;
+        return data;
       }
 
       return data;
