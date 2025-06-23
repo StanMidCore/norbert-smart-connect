@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface UnipileAccount {
@@ -28,6 +29,11 @@ export const useUnipile = () => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchAccounts = async () => {
+    if (loading) {
+      console.log('⚠️ fetchAccounts déjà en cours, ignoré');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     
@@ -137,9 +143,8 @@ export const useUnipile = () => {
     }
   };
 
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
+  // SUPPRIMÉ: l'useEffect automatique qui causait la boucle infinie
+  // Les composants doivent maintenant appeler fetchAccounts() manuellement quand nécessaire
 
   return {
     accounts,

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +20,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   const [connecting, setConnecting] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [hasLoadedAccounts, setHasLoadedAccounts] = useState(false);
   const fetchingRef = useRef(false);
   
   const channelIcons = {
@@ -58,16 +58,17 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
 
   // Récupérer les comptes une seule fois quand l'utilisateur est disponible
   const fetchAccountsOnce = useCallback(async () => {
-    if (user && !fetchingRef.current && !loading) {
+    if (user && !fetchingRef.current && !loading && !hasLoadedAccounts) {
       console.log('📡 Récupération des comptes pour:', user.email);
       fetchingRef.current = true;
+      setHasLoadedAccounts(true);
       try {
         await fetchAccounts();
       } finally {
         fetchingRef.current = false;
       }
     }
-  }, [user, fetchAccounts, loading]);
+  }, [user, fetchAccounts, loading, hasLoadedAccounts]);
 
   useEffect(() => {
     fetchAccountsOnce();
@@ -87,6 +88,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
       // Nettoyer l'URL et actualiser les comptes
       window.history.replaceState({}, '', window.location.pathname);
       if (!fetchingRef.current) {
+        setHasLoadedAccounts(false); // Permettre un nouveau chargement
         fetchAccountsOnce();
       }
     } else if (connection === 'failed' && provider) {
@@ -187,6 +189,12 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     }
   };
 
+  const handleRefreshAccounts = async () => {
+    if (fetchingRef.current) return;
+    setHasLoadedAccounts(false);
+    await fetchAccountsOnce();
+  };
+
   if (loading || !user || !hasInitialized) {
     return (
       <div className="min-h-screen bg-app-bg p-4 flex items-center justify-center">
@@ -219,7 +227,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={fetchAccountsOnce}
+                  onClick={handleRefreshAccounts}
                   className="mt-2"
                   disabled={fetchingRef.current}
                 >
