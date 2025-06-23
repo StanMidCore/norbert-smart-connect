@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -140,7 +139,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     };
   }, []);
 
-  // Surveiller la fenêtre OAuth avec fermeture automatique améliorée
+  // Surveiller la fenêtre OAuth avec fermeture automatique après délai
   const startWindowMonitoring = (authWindow: Window, provider: string) => {
     if (checkWindowInterval.current) {
       clearInterval(checkWindowInterval.current);
@@ -148,15 +147,15 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
 
     console.log(`🔍 Début surveillance fenêtre ${provider}`);
     let checkCount = 0;
-    const maxChecks = 300; // 5 minutes max (300 * 1000ms)
+    const maxChecks = 60; // 1 minute max (60 * 1000ms)
 
     checkWindowInterval.current = setInterval(() => {
       checkCount++;
       
       try {
-        // Vérifier si la fenêtre est fermée
+        // Vérifier si la fenêtre est fermée manuellement
         if (authWindow.closed) {
-          console.log(`🔒 Fenêtre ${provider} fermée par l'utilisateur`);
+          console.log(`🔒 Fenêtre ${provider} fermée manuellement`);
           clearInterval(checkWindowInterval.current!);
           checkWindowInterval.current = null;
           authWindowRef.current = null;
@@ -171,55 +170,32 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           return;
         }
 
-        // Timeout de sécurité
+        // Fermeture automatique après 1 minute pour éviter le blocage
         if (checkCount >= maxChecks) {
-          console.log(`⏰ Timeout surveillance ${provider}, fermeture forcée`);
+          console.log(`⏰ Fermeture automatique après 1 minute pour ${provider}`);
           authWindow.close();
-          return;
-        }
-
-        // Essayer de détecter le succès via l'URL
-        try {
-          const currentUrl = authWindow.location.href;
           
-          // Vérifier si on est sur une page de succès
-          if (currentUrl.includes('connection=success') || 
-              currentUrl.includes('success') || 
-              currentUrl.includes('code=') ||
-              currentUrl.includes('access_token=') ||
-              // Détecter si on est revenu sur notre domaine avec des paramètres de succès
-              (currentUrl.includes(window.location.origin) && 
-               (currentUrl.includes('?') || currentUrl.includes('#')))) {
-            
-            console.log(`✅ Succès OAuth détecté pour ${provider}: ${currentUrl}`);
-            
-            // Fermer la fenêtre immédiatement
-            authWindow.close();
-            
-            // Arrêter la surveillance
-            clearInterval(checkWindowInterval.current!);
-            checkWindowInterval.current = null;
-            authWindowRef.current = null;
-            
-            // Notifier le succès
-            toast({
-              title: "Connexion réussie",
-              description: `Votre compte ${provider} a été connecté avec succès`,
-            });
-            
-            // Actualiser les comptes
-            setTimeout(() => {
-              console.log(`🔄 Actualisation des comptes après succès ${provider}`);
-              setConnecting(null);
-              setHasLoadedAccounts(false);
-              fetchAccountsOnce();
-            }, 500);
-            
-            return;
-          }
-        } catch (crossOriginError) {
-          // Erreur cross-origin normale, continuer la surveillance
-          // On ne peut pas accéder à l'URL à cause des restrictions CORS
+          // Arrêter la surveillance
+          clearInterval(checkWindowInterval.current!);
+          checkWindowInterval.current = null;
+          authWindowRef.current = null;
+          
+          // Réinitialiser l'état et actualiser les comptes
+          setConnecting(null);
+          
+          toast({
+            title: "Fenêtre fermée automatiquement",
+            description: `La fenêtre ${provider} a été fermée. Si vous avez terminé l'autorisation, vos comptes vont être actualisés.`,
+          });
+          
+          // Actualiser les comptes
+          setTimeout(() => {
+            console.log(`🔄 Actualisation automatique des comptes pour ${provider}`);
+            setHasLoadedAccounts(false);
+            fetchAccountsOnce();
+          }, 2000);
+          
+          return;
         }
 
       } catch (error) {
@@ -227,15 +203,6 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
         console.log(`⚠️ Erreur surveillance ${provider}:`, error);
       }
     }, 1000);
-
-    // Timeout global de sécurité - fermer après 5 minutes
-    setTimeout(() => {
-      if (authWindow && !authWindow.closed) {
-        console.log(`⏰ Timeout global pour ${provider}, fermeture de la fenêtre`);
-        authWindow.close();
-        setConnecting(null);
-      }
-    }, 5 * 60 * 1000);
   };
 
   const handleConnectProvider = async (provider: string) => {
@@ -299,7 +266,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           
           toast({
             title: "Autorisation en cours",
-            description: `Autorisez l'accès à ${provider} dans la nouvelle fenêtre`,
+            description: `Autorisez l'accès à ${provider} dans la nouvelle fenêtre. Elle se fermera automatiquement dans 1 minute.`,
           });
         } else {
           throw new Error('Impossible d\'ouvrir la fenêtre d\'autorisation. Vérifiez que les popups ne sont pas bloquées.');
@@ -347,6 +314,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   const handleRefreshAccounts = async () => {
     if (fetchingRef.current) return;
     console.log('🔄 Actualisation manuelle des comptes...');
+    setConnecting(null); // Réinitialiser l'état de connexion
     setHasLoadedAccounts(false);
     await fetchAccountsOnce();
   };
