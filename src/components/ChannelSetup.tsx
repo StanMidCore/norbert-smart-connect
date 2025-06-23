@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Mail, Phone, Instagram, Facebook, Loader2, RefreshCw, Plus, QrCode } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { MessageSquare, Mail, Phone, Instagram, Facebook, Loader2, RefreshCw, Plus, QrCode, ExternalLink } from 'lucide-react';
 import { useUnipile } from '@/hooks/useUnipile';
 import { useNorbertUser } from '@/hooks/useNorbertUser';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +22,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [hasLoadedAccounts, setHasLoadedAccounts] = useState(false);
+  const [authModal, setAuthModal] = useState<{ isOpen: boolean; provider: string; url: string } | null>(null);
   const fetchingRef = useRef(false);
   
   const channelIcons = {
@@ -134,24 +136,32 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
 
     setConnecting(provider);
     setQrCode(null);
+    setAuthModal(null);
     
     try {
+      console.log(`🔌 Tentative de connexion ${provider}...`);
       const result = await connectAccount(provider);
       
       if (result.qr_code) {
-        // Pour WhatsApp, afficher le QR code
+        // Pour WhatsApp, afficher le QR code dans une modale
+        console.log('📱 QR Code WhatsApp reçu');
         setQrCode(result.qr_code);
         toast({
           title: "QR Code généré",
           description: "Scannez le QR code avec WhatsApp pour connecter votre compte",
         });
       } else if (result.authorization_url) {
-        // Pour les autres providers, la redirection se fait automatiquement
-        toast({
-          title: "Redirection en cours...",
-          description: "Vous allez être redirigé vers la page d'autorisation",
+        // Pour OAuth, ouvrir dans une modale/iframe au lieu d'une nouvelle fenêtre
+        console.log('🔗 URL d\'autorisation reçue:', result.authorization_url);
+        setAuthModal({
+          isOpen: true,
+          provider: provider,
+          url: result.authorization_url
         });
-        // La redirection se fait dans useUnipile.connectAccount
+        toast({
+          title: "Autorisation requise",
+          description: `Connectez-vous à ${provider} dans la fenêtre qui s'ouvre`,
+        });
       } else if (result.requires_manual_setup) {
         toast({
           title: "Configuration manuelle requise",
@@ -164,11 +174,12 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           description: `Votre compte ${provider} a été connecté`,
         });
         if (!fetchingRef.current) {
+          setHasLoadedAccounts(false);
           await fetchAccountsOnce();
         }
       }
     } catch (error) {
-      console.error('Erreur connexion:', error);
+      console.error('❌ Erreur connexion:', error);
       let errorMessage = `Impossible de connecter ${provider}. `;
       
       if (error.message?.includes('Invalid credentials') || error.message?.includes('Configuration manquante')) {
@@ -176,7 +187,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
       } else if (error.message?.includes('non-2xx status code')) {
         errorMessage += 'Erreur de configuration du serveur. Veuillez réessayer plus tard.';
       } else {
-        errorMessage += 'Veuillez réessayer.';
+        errorMessage += `Détails: ${error.message || 'Veuillez réessayer.'}`;
       }
       
       toast({
@@ -188,6 +199,13 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
       setConnecting(null);
     }
   };
+
+  const handleAuthComplete = useCallback(() => {
+    console.log('✅ Autorisation terminée, actualisation des comptes...');
+    setAuthModal(null);
+    setHasLoadedAccounts(false);
+    fetchAccountsOnce();
+  }, [fetchAccountsOnce]);
 
   const handleRefreshAccounts = async () => {
     if (fetchingRef.current) return;
@@ -239,57 +257,128 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           </Card>
         )}
 
-        {/* QR Code pour WhatsApp */}
+        {/* Modale QR Code WhatsApp améliorée */}
         {qrCode && (
-          <Card className="mb-6 border-green-200">
-            <CardHeader>
-              <CardTitle className="text-lg text-main flex items-center">
-                <QrCode className="h-5 w-5 mr-2" />
-                WhatsApp QR Code
-              </CardTitle>
-              <CardDescription>
-                Ouvrez WhatsApp sur votre téléphone et scannez ce QR code
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-center">
-              <div className="bg-white p-4 rounded-lg inline-block border-2 border-gray-200">
-                <img 
-                  src={`data:image/png;base64,${qrCode}`} 
-                  alt="QR Code WhatsApp" 
-                  className="w-64 h-64 mx-auto"
-                  onError={(e) => {
-                    console.error('Erreur chargement QR code:', e);
-                    toast({
-                      title: "Erreur QR Code",
-                      description: "Format QR code invalide. Veuillez réessayer.",
-                      variant: "destructive",
-                    });
-                    setQrCode(null);
-                  }}
-                />
+          <Dialog open={!!qrCode} onOpenChange={() => setQrCode(null)}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center">
+                  <QrCode className="h-5 w-5 mr-2" />
+                  Connexion WhatsApp
+                </DialogTitle>
+                <DialogDescription>
+                  Scannez ce QR code avec WhatsApp Business sur votre téléphone
+                </DialogDescription>
+              </DialogHeader>
+              <div className="text-center space-y-4">
+                <div className="bg-white p-4 rounded-lg border-2 border-gray-200 mx-auto inline-block">
+                  <img 
+                    src={`data:image/png;base64,${qrCode}`} 
+                    alt="QR Code WhatsApp" 
+                    className="w-64 h-64 mx-auto"
+                    onError={(e) => {
+                      console.error('❌ Erreur chargement QR code:', e);
+                      toast({
+                        title: "Erreur QR Code",
+                        description: "Format QR code invalide. Veuillez réessayer.",
+                        variant: "destructive",
+                      });
+                      setQrCode(null);
+                    }}
+                    onLoad={() => console.log('✅ QR code chargé avec succès')}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    1. Ouvrez WhatsApp Business sur votre téléphone
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    2. Allez dans Paramètres {">"} Appareils connectés
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    3. Appuyez sur "Connecter un appareil" et scannez ce code
+                  </p>
+                </div>
+                <div className="flex gap-2 justify-center">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleConnectProvider('whatsapp')}
+                    disabled={connecting === 'whatsapp'}
+                  >
+                    {connecting === 'whatsapp' ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Régénérer
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setQrCode(null)}
+                  >
+                    Fermer
+                  </Button>
+                </div>
               </div>
-              <p className="text-sm text-main opacity-70 mt-2">
-                Le QR code expire après quelques minutes
-              </p>
-              <div className="flex gap-2 justify-center mt-4">
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Modale OAuth intégrée */}
+        {authModal && (
+          <Dialog open={authModal.isOpen} onOpenChange={() => setAuthModal(null)}>
+            <DialogContent className="sm:max-w-4xl sm:max-h-[80vh]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center">
+                  <ExternalLink className="h-5 w-5 mr-2" />
+                  Connexion {authModal.provider}
+                </DialogTitle>
+                <DialogDescription>
+                  Autorisez l'accès à votre compte {authModal.provider}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <p className="text-sm text-yellow-800">
+                    ⚠️ Une nouvelle fenêtre va s'ouvrir pour la connexion. 
+                    Revenez ici une fois l'autorisation terminée.
+                  </p>
+                </div>
+                <div className="flex gap-2 justify-center">
+                  <Button 
+                    onClick={() => {
+                      window.open(authModal.url, '_blank', 'width=500,height=600');
+                      toast({
+                        title: "Fenêtre ouverte",
+                        description: "Terminez la connexion dans la nouvelle fenêtre puis revenez ici",
+                      });
+                    }}
+                    className="bg-cta hover:bg-cta/90"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Ouvrir la connexion
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setAuthModal(null)}
+                  >
+                    Annuler
+                  </Button>
+                </div>
                 <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => handleConnectProvider('whatsapp')}
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleAuthComplete}
+                  className="w-full"
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Régénérer
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setQrCode(null)}
-                >
-                  Fermer
+                  J'ai terminé la connexion, actualiser
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </DialogContent>
+          </Dialog>
         )}
 
         {/* Canaux connectés */}
