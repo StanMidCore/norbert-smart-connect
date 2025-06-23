@@ -1,13 +1,17 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { MessageSquare, Mail, Phone, Instagram, Facebook, Loader2, RefreshCw, Plus, QrCode } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useUnipile } from '@/hooks/useUnipile';
 import { useNorbertUser } from '@/hooks/useNorbertUser';
 import { useToast } from '@/hooks/use-toast';
 import type { Channel } from '@/types/norbert';
+import { OAuthWindowManager } from './channel-setup/OAuthWindowManager';
+import ChannelSetupHeader from './channel-setup/ChannelSetupHeader';
+import ErrorDisplay from './channel-setup/ErrorDisplay';
+import QRCodeDialog from './channel-setup/QRCodeDialog';
+import ConnectedChannelsList from './channel-setup/ConnectedChannelsList';
+import AvailableProvidersList from './channel-setup/AvailableProvidersList';
+import ChannelSetupActions from './channel-setup/ChannelSetupActions';
 
 interface ChannelSetupProps {
   onComplete: () => void;
@@ -23,32 +27,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   const [hasInitialized, setHasInitialized] = useState(false);
   const [hasLoadedAccounts, setHasLoadedAccounts] = useState(false);
   const fetchingRef = useRef(false);
-  const authWindowRef = useRef<Window | null>(null);
-  const checkWindowInterval = useRef<NodeJS.Timeout | null>(null);
-  
-  const channelIcons = {
-    whatsapp: MessageSquare,
-    email: Mail,
-    sms: Phone,
-    instagram: Instagram,
-    facebook: Facebook,
-  };
-
-  const channelColors = {
-    whatsapp: 'text-green-600',
-    email: 'text-blue-600',
-    sms: 'text-purple-600',
-    instagram: 'text-pink-600',
-    facebook: 'text-blue-700',
-  };
-
-  const availableProviders = [
-    { id: 'whatsapp', name: 'WhatsApp', description: 'Messages WhatsApp Business' },
-    { id: 'gmail', name: 'Gmail', description: 'Emails Gmail' },
-    { id: 'outlook', name: 'Outlook', description: 'Emails Outlook' },
-    { id: 'instagram', name: 'Instagram', description: 'Messages Instagram' },
-    { id: 'facebook', name: 'Facebook', description: 'Messages Facebook' },
-  ];
+  const oauthManagerRef = useRef(new OAuthWindowManager());
 
   // Initialiser l'utilisateur au chargement - une seule fois
   useEffect(() => {
@@ -93,7 +72,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
         description: `Votre compte ${provider} a été connecté avec succès`,
       });
       window.history.replaceState({}, '', window.location.pathname);
-      // Forcer l'actualisation des comptes
+      setConnecting(null);
       setHasLoadedAccounts(false);
       fetchAccountsOnce();
     } else if (connection === 'failed' && provider) {
@@ -104,6 +83,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
         variant: "destructive",
       });
       window.history.replaceState({}, '', window.location.pathname);
+      setConnecting(null);
     }
   }, [toast, fetchAccountsOnce]);
 
@@ -127,83 +107,12 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     }
   }, [channels, user?.id]);
 
-  // Nettoyer l'intervalle de vérification de la fenêtre
+  // Nettoyer les ressources au démontage
   useEffect(() => {
     return () => {
-      if (checkWindowInterval.current) {
-        clearInterval(checkWindowInterval.current);
-      }
-      if (authWindowRef.current && !authWindowRef.current.closed) {
-        authWindowRef.current.close();
-      }
+      oauthManagerRef.current.cleanup();
     };
   }, []);
-
-  // Surveiller la fenêtre OAuth avec fermeture automatique après délai
-  const startWindowMonitoring = (authWindow: Window, provider: string) => {
-    if (checkWindowInterval.current) {
-      clearInterval(checkWindowInterval.current);
-    }
-
-    console.log(`🔍 Début surveillance fenêtre ${provider}`);
-    let checkCount = 0;
-    const maxChecks = 60; // 1 minute max (60 * 1000ms)
-
-    checkWindowInterval.current = setInterval(() => {
-      checkCount++;
-      
-      try {
-        // Vérifier si la fenêtre est fermée manuellement
-        if (authWindow.closed) {
-          console.log(`🔒 Fenêtre ${provider} fermée manuellement`);
-          clearInterval(checkWindowInterval.current!);
-          checkWindowInterval.current = null;
-          authWindowRef.current = null;
-          setConnecting(null);
-          
-          // Actualiser les comptes après fermeture
-          setTimeout(() => {
-            console.log(`🔄 Actualisation des comptes après fermeture fenêtre ${provider}`);
-            setHasLoadedAccounts(false);
-            fetchAccountsOnce();
-          }, 1000);
-          return;
-        }
-
-        // Fermeture automatique après 1 minute pour éviter le blocage
-        if (checkCount >= maxChecks) {
-          console.log(`⏰ Fermeture automatique après 1 minute pour ${provider}`);
-          authWindow.close();
-          
-          // Arrêter la surveillance
-          clearInterval(checkWindowInterval.current!);
-          checkWindowInterval.current = null;
-          authWindowRef.current = null;
-          
-          // Réinitialiser l'état et actualiser les comptes
-          setConnecting(null);
-          
-          toast({
-            title: "Fenêtre fermée automatiquement",
-            description: `La fenêtre ${provider} a été fermée. Si vous avez terminé l'autorisation, vos comptes vont être actualisés.`,
-          });
-          
-          // Actualiser les comptes
-          setTimeout(() => {
-            console.log(`🔄 Actualisation automatique des comptes pour ${provider}`);
-            setHasLoadedAccounts(false);
-            fetchAccountsOnce();
-          }, 2000);
-          
-          return;
-        }
-
-      } catch (error) {
-        // Erreur générale, continuer la surveillance
-        console.log(`⚠️ Erreur surveillance ${provider}:`, error);
-      }
-    }, 1000);
-  };
 
   const handleConnectProvider = async (provider: string) => {
     if (!user) {
@@ -234,35 +143,19 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           description: "Scannez le QR code avec WhatsApp pour connecter votre compte",
         });
       } else if (result.authorization_url) {
-        // Pour OAuth, ouvrir dans une nouvelle fenêtre centrée
+        // Pour OAuth, utiliser le gestionnaire de fenêtre
         console.log('🔗 URL d\'autorisation reçue:', result.authorization_url);
         
-        // Fermer la fenêtre précédente si elle existe
-        if (authWindowRef.current && !authWindowRef.current.closed) {
-          authWindowRef.current.close();
-        }
-        
-        // Calculer la position centrée
-        const width = 600;
-        const height = 700;
-        const left = Math.max(0, Math.floor(window.screen.width / 2 - width / 2));
-        const top = Math.max(0, Math.floor(window.screen.height / 2 - height / 2));
-        
-        // Ouvrir dans une nouvelle fenêtre popup
-        const authWindow = window.open(
-          result.authorization_url,
-          `oauth-${provider}-${Date.now()}`,
-          `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no,directories=no`
-        );
+        const authWindow = oauthManagerRef.current.openAuthWindow(result.authorization_url, provider);
         
         if (authWindow) {
-          authWindowRef.current = authWindow;
-          
-          // Donner le focus à la nouvelle fenêtre
-          authWindow.focus();
-          
-          // Démarrer la surveillance avec fermeture automatique
-          startWindowMonitoring(authWindow, provider);
+          const handleComplete = () => {
+            setConnecting(null);
+            setHasLoadedAccounts(false);
+            fetchAccountsOnce();
+          };
+
+          oauthManagerRef.current.startWindowMonitoring(authWindow, provider, handleComplete, toast);
           
           toast({
             title: "Autorisation en cours",
@@ -314,9 +207,17 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   const handleRefreshAccounts = async () => {
     if (fetchingRef.current) return;
     console.log('🔄 Actualisation manuelle des comptes...');
-    setConnecting(null); // Réinitialiser l'état de connexion
+    setConnecting(null);
     setHasLoadedAccounts(false);
     await fetchAccountsOnce();
+  };
+
+  const handleQRError = (message: string) => {
+    toast({
+      title: "Erreur QR Code",
+      description: message,
+      variant: "destructive",
+    });
   };
 
   if (loading || !user || !hasInitialized) {
@@ -333,235 +234,38 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   return (
     <div className="min-h-screen bg-app-bg p-4">
       <div className="max-w-md mx-auto">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-main mb-2">
-            Connecter vos canaux
-          </h1>
-          <p className="text-main opacity-70">
-            Bonjour {user.email} ! Ajoutez vos comptes pour recevoir et répondre aux messages
-          </p>
-        </div>
+        <ChannelSetupHeader userEmail={user.email} />
 
         {error && (
-          <Card className="mb-6 border-red-200">
-            <CardContent className="p-4">
-              <div className="text-red-600 text-sm">
-                <p className="font-medium">Erreur de connexion</p>
-                <p>{error}</p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleRefreshAccounts}
-                  className="mt-2"
-                  disabled={fetchingRef.current}
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Réessayer
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <ErrorDisplay 
+            error={error}
+            onRetry={handleRefreshAccounts}
+            isRetrying={fetchingRef.current}
+          />
         )}
 
-        {/* Modale QR Code WhatsApp */}
-        {qrCode && (
-          <Dialog open={!!qrCode} onOpenChange={() => setQrCode(null)}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="flex items-center">
-                  <QrCode className="h-5 w-5 mr-2" />
-                  Connexion WhatsApp
-                </DialogTitle>
-                <DialogDescription>
-                  Scannez ce QR code avec WhatsApp Business sur votre téléphone
-                </DialogDescription>
-              </DialogHeader>
-              <div className="text-center space-y-4">
-                <div className="bg-white p-4 rounded-lg border-2 border-gray-200 mx-auto inline-block">
-                  <img 
-                    src={`data:image/png;base64,${qrCode}`} 
-                    alt="QR Code WhatsApp" 
-                    className="w-64 h-64 mx-auto"
-                    onError={() => {
-                      console.error('❌ Erreur chargement QR code');
-                      toast({
-                        title: "Erreur QR Code",
-                        description: "Format QR code invalide. Veuillez réessayer.",
-                        variant: "destructive",
-                      });
-                      setQrCode(null);
-                    }}
-                    onLoad={() => {
-                      console.log('✅ QR code chargé avec succès');
-                    }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm text-gray-600">
-                    1. Ouvrez WhatsApp Business sur votre téléphone
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    2. Allez dans Paramètres {">"} Appareils connectés
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    3. Appuyez sur "Connecter un appareil" et scannez ce code
-                  </p>
-                </div>
-                <div className="flex gap-2 justify-center">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => handleConnectProvider('whatsapp')}
-                    disabled={connecting === 'whatsapp'}
-                  >
-                    {connecting === 'whatsapp' ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                    )}
-                    Régénérer
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setQrCode(null)}
-                  >
-                    Fermer
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+        <QRCodeDialog
+          qrCode={qrCode}
+          connecting={connecting}
+          onClose={() => setQrCode(null)}
+          onRegenerate={() => handleConnectProvider('whatsapp')}
+          onError={handleQRError}
+        />
 
-        {/* Canaux connectés */}
-        {connectedChannels.length > 0 && (
-          <div className="space-y-4 mb-6">
-            <h2 className="text-lg font-semibold text-main">Canaux connectés</h2>
-            {channels.map((channel) => {
-              const Icon = channelIcons[channel.channel_type as keyof typeof channelIcons] || MessageSquare;
-              const color = channelColors[channel.channel_type as keyof typeof channelColors] || 'text-gray-600';
-              
-              return (
-                <Card key={channel.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Icon className={`h-8 w-8 ${color}`} />
-                        <div>
-                          <h3 className="font-medium text-main">{channel.provider_info?.name || channel.channel_type}</h3>
-                          <p className="text-sm text-main opacity-70">
-                            {channel.provider_info?.provider || channel.channel_type.toUpperCase()} • {channel.provider_info?.identifier || channel.unipile_account_id}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <Badge className="bg-status-success text-white">
-                        Connecté
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+        <ConnectedChannelsList channels={channels} />
 
-        {/* Canaux disponibles */}
-        <div className="space-y-4 mb-6">
-          <h2 className="text-lg font-semibold text-main">
-            {connectedChannels.length > 0 ? 'Ajouter d\'autres canaux' : 'Connecter vos premiers canaux'}
-          </h2>
-          
-          {availableProviders
-            .filter(provider => !channels.some(ch => ch.provider_info?.provider?.toLowerCase() === provider.id || ch.channel_type === provider.id))
-            .map((provider) => {
-              const Icon = channelIcons[provider.id as keyof typeof channelIcons] || MessageSquare;
-              const color = channelColors[provider.id as keyof typeof channelColors] || 'text-gray-600';
-              const isConnecting = connecting === provider.id;
-              
-              return (
-                <Card key={provider.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Icon className={`h-8 w-8 ${color}`} />
-                        <div>
-                          <h3 className="font-medium text-main">{provider.name}</h3>
-                          <p className="text-sm text-main opacity-70">{provider.description}</p>
-                        </div>
-                      </div>
-                      
-                      <Button
-                        onClick={() => handleConnectProvider(provider.id)}
-                        disabled={isConnecting}
-                        size="sm"
-                        className="bg-cta hover:bg-cta/90"
-                      >
-                        {isConnecting ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Plus className="h-4 w-4 mr-1" />
-                            Connecter
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-        </div>
+        <AvailableProvidersList
+          channels={channels}
+          connecting={connecting}
+          onConnect={handleConnectProvider}
+        />
 
-        {connectedChannels.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-lg text-main">Configuration automatique</CardTitle>
-              <CardDescription className="text-main opacity-70">
-                Vos canaux sont automatiquement synchronisés avec Norbert
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-green-50 p-3 rounded border border-green-200">
-                <p className="text-green-700 text-sm">
-                  ✓ {connectedChannels.length} canal{connectedChannels.length > 1 ? 's' : ''} configuré{connectedChannels.length > 1 ? 's' : ''}
-                </p>
-                <p className="text-green-600 text-xs mt-1">
-                  Les messages seront traités automatiquement par Norbert
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Button 
-          onClick={onComplete} 
-          className="w-full bg-cta hover:bg-cta/90"
-          disabled={connectedChannels.length === 0}
-        >
-          {connectedChannels.length === 0 
-            ? 'Connectez au moins un canal pour continuer' 
-            : `Continuer avec ${connectedChannels.length} canal${connectedChannels.length > 1 ? 's' : ''}`
-          }
-        </Button>
-
-        {connectedChannels.length === 0 && (
-          <div className="mt-4 text-center">
-            <p className="text-sm text-main opacity-70 mb-2">
-              Connectez vos comptes pour commencer à utiliser Norbert
-            </p>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRefreshAccounts}
-              disabled={fetchingRef.current}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Actualiser les comptes
-            </Button>
-          </div>
-        )}
+        <ChannelSetupActions
+          connectedChannelsCount={connectedChannels.length}
+          onComplete={onComplete}
+          onRefresh={handleRefreshAccounts}
+          isRefreshing={fetchingRef.current}
+        />
       </div>
     </div>
   );

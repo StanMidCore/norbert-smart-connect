@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-interface UnipileAccount {
+export interface UnipileAccount {
   id: string;
   provider: string;
   identifier: string;
@@ -10,7 +10,7 @@ interface UnipileAccount {
   is_active: boolean;
 }
 
-interface UnipileChannel {
+export interface UnipileChannel {
   id: string;
   unipile_account_id: string;
   channel_type: string;
@@ -142,9 +142,6 @@ export const useUnipile = () => {
       throw err;
     }
   };
-
-  // SUPPRIMÉ: l'useEffect automatique qui causait la boucle infinie
-  // Les composants doivent maintenant appeler fetchAccounts() manuellement quand nécessaire
 
   return {
     accounts,
