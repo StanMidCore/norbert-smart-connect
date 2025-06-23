@@ -2,9 +2,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { CreditCard, ArrowLeft, Check } from 'lucide-react';
+import { CreditCard, ArrowLeft, Check, Smartphone } from 'lucide-react';
+import StripeElements from './StripeElements';
 
 interface StripePaymentProps {
   signupId: string;
@@ -14,44 +13,18 @@ interface StripePaymentProps {
 }
 
 const StripePayment = ({ signupId, email, onComplete, onBack }: StripePaymentProps) => {
-  const [loading, setLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'web' | 'native'>('native');
 
-  const handlePayment = async () => {
-    setLoading(true);
-
-    try {
-      console.log('Début du processus de paiement pour:', email);
-      
-      const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
-        body: {
-          signup_id: signupId,
-          email: email
-        }
-      });
-
-      console.log('Réponse de create-stripe-checkout:', data, error);
-
-      if (error) {
-        console.error('Erreur de la fonction:', error);
-        throw error;
-      }
-
-      if (data.success && data.checkout_url) {
-        console.log('URL de checkout reçue:', data.checkout_url);
-        // Ouvrir Stripe checkout dans un nouvel onglet
-        window.open(data.checkout_url, '_blank');
-        toast.success('Redirection vers Stripe en cours...');
-      } else {
-        console.error('Données de réponse invalides:', data);
-        throw new Error(data.error || 'Erreur lors de la création du paiement');
-      }
-    } catch (err) {
-      console.error('Erreur paiement:', err);
-      toast.error(err instanceof Error ? err.message : 'Erreur de paiement');
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (paymentMethod === 'native') {
+    return (
+      <StripeElements 
+        signupId={signupId}
+        email={email}
+        onComplete={onComplete}
+        onBack={() => setPaymentMethod('web')}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -60,12 +33,39 @@ const StripePayment = ({ signupId, email, onComplete, onBack }: StripePaymentPro
           <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
             <CreditCard className="w-8 h-8 text-green-600" />
           </div>
-          <CardTitle className="text-2xl font-bold">Commencez votre essai</CardTitle>
+          <CardTitle className="text-2xl font-bold">Choisissez votre méthode de paiement</CardTitle>
           <CardDescription>
-            15 jours gratuits, puis 197€/mois
+            Comment souhaitez-vous procéder au paiement ?
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4">
+          <Button 
+            onClick={() => setPaymentMethod('native')} 
+            className="w-full h-16 flex items-center justify-center space-x-3"
+            variant="outline"
+          >
+            <Smartphone className="w-6 h-6" />
+            <div className="text-left">
+              <div className="font-semibold">Paiement intégré</div>
+              <div className="text-sm text-gray-600">Restez dans l'application</div>
+            </div>
+          </Button>
+
+          <Button 
+            onClick={() => {
+              // Logique existante pour ouvrir Stripe Checkout
+              window.open('https://checkout.stripe.com', '_blank');
+            }} 
+            className="w-full h-16 flex items-center justify-center space-x-3"
+            variant="outline"
+          >
+            <CreditCard className="w-6 h-6" />
+            <div className="text-left">
+              <div className="font-semibold">Stripe Checkout</div>
+              <div className="text-sm text-gray-600">Page web sécurisée</div>
+            </div>
+          </Button>
+
           <div className="bg-blue-50 p-4 rounded-lg">
             <h3 className="font-semibold text-blue-900 mb-2">Ce qui est inclus :</h3>
             <ul className="space-y-2 text-blue-800">
@@ -91,12 +91,8 @@ const StripePayment = ({ signupId, email, onComplete, onBack }: StripePaymentPro
           <div className="text-center text-sm text-gray-600">
             <p>• Essai gratuit de 15 jours</p>
             <p>• Annulation possible à tout moment</p>
-            <p>• Paiement sécurisé par Stripe</p>
+            <p>• 197€/mois après l'essai</p>
           </div>
-
-          <Button onClick={handlePayment} className="w-full" disabled={loading}>
-            {loading ? 'Redirection...' : 'Commencer l\'essai gratuit'}
-          </Button>
 
           <Button variant="ghost" onClick={onBack} className="w-full">
             <ArrowLeft className="w-4 h-4 mr-2" />
