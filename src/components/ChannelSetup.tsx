@@ -1,9 +1,10 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { MessageSquare, Mail, Phone, Instagram, Facebook, Loader2, RefreshCw, Plus, QrCode, ExternalLink, AlertCircle } from 'lucide-react';
+import { MessageSquare, Mail, Phone, Instagram, Facebook, Loader2, RefreshCw, Plus, QrCode, ExternalLink } from 'lucide-react';
 import { useUnipile } from '@/hooks/useUnipile';
 import { useNorbertUser } from '@/hooks/useNorbertUser';
 import { useToast } from '@/hooks/use-toast';
@@ -22,9 +23,9 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [hasLoadedAccounts, setHasLoadedAccounts] = useState(false);
-  const [authModal, setAuthModal] = useState<{ isOpen: boolean; provider: string; url: string } | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string>('');
   const fetchingRef = useRef(false);
+  const authWindowRef = useRef<Window | null>(null);
+  const checkWindowInterval = useRef<NodeJS.Timeout | null>(null);
   
   const channelIcons = {
     whatsapp: MessageSquare,
@@ -50,18 +51,10 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     { id: 'facebook', name: 'Facebook', description: 'Messages Facebook' },
   ];
 
-  // Ajouter une fonction de debug
-  const addDebugInfo = (info: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setDebugInfo(prev => `${prev}\n[${timestamp}] ${info}`);
-    console.log(`[DEBUG] ${info}`);
-  };
-
   // Initialiser l'utilisateur au chargement - une seule fois
   useEffect(() => {
     if (!user && !hasInitialized) {
       console.log('🔄 Initialisation utilisateur...');
-      addDebugInfo('Initialisation utilisateur...');
       getCurrentUser();
       setHasInitialized(true);
     }
@@ -71,14 +64,13 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   const fetchAccountsOnce = useCallback(async () => {
     if (user && !fetchingRef.current && !loading && !hasLoadedAccounts) {
       console.log('📡 Récupération des comptes pour:', user.email);
-      addDebugInfo(`Récupération des comptes pour: ${user.email}`);
       fetchingRef.current = true;
       setHasLoadedAccounts(true);
       try {
         await fetchAccounts();
-        addDebugInfo('Comptes récupérés avec succès');
+        console.log('✅ Comptes récupérés avec succès');
       } catch (err) {
-        addDebugInfo(`Erreur récupération comptes: ${err.message || err}`);
+        console.error('❌ Erreur récupération comptes:', err);
       } finally {
         fetchingRef.current = false;
       }
@@ -96,18 +88,17 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     const provider = urlParams.get('provider');
     
     if (connection === 'success' && provider) {
-      addDebugInfo(`Connexion ${provider} réussie via URL`);
+      console.log(`✅ Connexion ${provider} réussie via URL`);
       toast({
         title: "Connexion réussie",
         description: `Votre compte ${provider} a été connecté avec succès`,
       });
       window.history.replaceState({}, '', window.location.pathname);
-      if (!fetchingRef.current) {
-        setHasLoadedAccounts(false);
-        fetchAccountsOnce();
-      }
+      // Forcer l'actualisation des comptes
+      setHasLoadedAccounts(false);
+      fetchAccountsOnce();
     } else if (connection === 'failed' && provider) {
-      addDebugInfo(`Connexion ${provider} échouée via URL`);
+      console.log(`❌ Connexion ${provider} échouée via URL`);
       toast({
         title: "Échec de la connexion",
         description: `Impossible de connecter votre compte ${provider}`,
@@ -121,7 +112,6 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   useEffect(() => {
     if (channels.length > 0) {
       console.log('📊 Mise à jour des canaux connectés, nombre:', channels.length);
-      addDebugInfo(`${channels.length} canaux connectés trouvés`);
       const normalizedChannels: Channel[] = channels
         .filter(ch => ch.status === 'connected')
         .map((ch, index) => ({
@@ -138,6 +128,46 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     }
   }, [channels, user?.id]);
 
+  // Nettoyer l'intervalle de vérification de la fenêtre
+  useEffect(() => {
+    return () => {
+      if (checkWindowInterval.current) {
+        clearInterval(checkWindowInterval.current);
+      }
+    };
+  }, []);
+
+  const startWindowMonitoring = (authWindow: Window, provider: string) => {
+    // Nettoyer l'ancien intervalle s'il existe
+    if (checkWindowInterval.current) {
+      clearInterval(checkWindowInterval.current);
+    }
+
+    checkWindowInterval.current = setInterval(() => {
+      try {
+        if (authWindow.closed) {
+          console.log(`🔄 Fenêtre OAuth ${provider} fermée, actualisation des comptes...`);
+          clearInterval(checkWindowInterval.current!);
+          checkWindowInterval.current = null;
+          authWindowRef.current = null;
+          
+          // Actualiser les comptes après fermeture
+          setTimeout(() => {
+            setHasLoadedAccounts(false);
+            fetchAccountsOnce();
+          }, 2000);
+          
+          toast({
+            title: "Vérification en cours",
+            description: `Vérification de la connexion ${provider}...`,
+          });
+        }
+      } catch (error) {
+        // Erreur d'accès cross-origin normale, continuer la surveillance
+      }
+    }, 1000);
+  };
+
   const handleConnectProvider = async (provider: string) => {
     if (!user) {
       toast({
@@ -150,66 +180,57 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
 
     setConnecting(provider);
     setQrCode(null);
-    setAuthModal(null);
-    addDebugInfo(`Tentative de connexion ${provider}...`);
     
     try {
       console.log(`🔌 Tentative de connexion ${provider}...`);
       const result = await connectAccount(provider);
       
-      addDebugInfo(`Réponse reçue pour ${provider}: ${JSON.stringify(result, null, 2)}`);
+      console.log(`📄 Réponse reçue pour ${provider}:`, result);
       
       if (result.qr_code) {
         // Pour WhatsApp, afficher le QR code
         console.log('📱 QR Code WhatsApp reçu');
-        addDebugInfo('QR Code WhatsApp reçu et affiché');
         setQrCode(result.qr_code);
         toast({
           title: "QR Code généré",
           description: "Scannez le QR code avec WhatsApp pour connecter votre compte",
         });
       } else if (result.authorization_url) {
-        // Pour OAuth, NE PAS rediriger dans la même fenêtre
+        // Pour OAuth, ouvrir dans une nouvelle fenêtre
         console.log('🔗 URL d\'autorisation reçue:', result.authorization_url);
-        addDebugInfo(`URL d'autorisation reçue: ${result.authorization_url}`);
+        
+        // Fermer la fenêtre précédente si elle existe
+        if (authWindowRef.current && !authWindowRef.current.closed) {
+          authWindowRef.current.close();
+        }
         
         // Ouvrir dans une nouvelle fenêtre
         const authWindow = window.open(
           result.authorization_url, 
-          'oauth-window',
-          'width=500,height=600,scrollbars=yes,resizable=yes'
+          `oauth-${provider}`,
+          'width=500,height=600,scrollbars=yes,resizable=yes,left=' + 
+          (window.screen.width / 2 - 250) + ',top=' + 
+          (window.screen.height / 2 - 300)
         );
         
         if (authWindow) {
-          toast({
-            title: "Fenêtre d'autorisation ouverte",
-            description: `Autorisez l'accès à ${provider} dans la nouvelle fenêtre, puis revenez ici`,
-          });
+          authWindowRef.current = authWindow;
+          startWindowMonitoring(authWindow, provider);
           
-          // Vérifier périodiquement si la fenêtre est fermée
-          const checkClosed = setInterval(() => {
-            if (authWindow.closed) {
-              clearInterval(checkClosed);
-              addDebugInfo('Fenêtre OAuth fermée, actualisation des comptes...');
-              // Actualiser les comptes après fermeture de la fenêtre
-              setTimeout(() => {
-                setHasLoadedAccounts(false);
-                fetchAccountsOnce();
-              }, 1000);
-            }
-          }, 1000);
+          toast({
+            title: "Autorisation en cours",
+            description: `Autorisez l'accès à ${provider} dans la nouvelle fenêtre`,
+          });
         } else {
           throw new Error('Impossible d\'ouvrir la fenêtre d\'autorisation. Vérifiez que les popups ne sont pas bloquées.');
         }
       } else if (result.requires_manual_setup) {
-        addDebugInfo(`Configuration manuelle requise pour ${provider}`);
         toast({
           title: "Configuration manuelle requise",
           description: result.error,
           variant: "destructive",
         });
       } else {
-        addDebugInfo(`Connexion ${provider} réussie directement`);
         toast({
           title: "Connexion réussie",
           description: `Votre compte ${provider} a été connecté`,
@@ -221,7 +242,6 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
       }
     } catch (error) {
       console.error('❌ Erreur connexion:', error);
-      addDebugInfo(`Erreur connexion ${provider}: ${error.message || error}`);
       
       let errorMessage = `Impossible de connecter ${provider}. `;
       
@@ -243,16 +263,9 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     }
   };
 
-  const handleAuthComplete = useCallback(() => {
-    console.log('✅ Autorisation terminée, actualisation des comptes...');
-    setAuthModal(null);
-    setHasLoadedAccounts(false);
-    fetchAccountsOnce();
-  }, [fetchAccountsOnce]);
-
   const handleRefreshAccounts = async () => {
     if (fetchingRef.current) return;
-    addDebugInfo('Actualisation manuelle des comptes...');
+    console.log('🔄 Actualisation manuelle des comptes...');
     setHasLoadedAccounts(false);
     await fetchAccountsOnce();
   };
@@ -280,32 +293,6 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           </p>
         </div>
 
-        {/* Debug Panel */}
-        <Card className="mb-4 border-yellow-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center">
-              <AlertCircle className="h-4 w-4 mr-2" />
-              Debug Info
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <textarea 
-              value={debugInfo} 
-              readOnly 
-              className="w-full h-32 text-xs font-mono bg-gray-50 p-2 rounded border resize-none"
-              placeholder="Les informations de debug apparaîtront ici..."
-            />
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setDebugInfo('')}
-              className="mt-2"
-            >
-              Effacer les logs
-            </Button>
-          </CardContent>
-        </Card>
-
         {error && (
           <Card className="mb-6 border-red-200">
             <CardContent className="p-4">
@@ -327,7 +314,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           </Card>
         )}
 
-        {/* Modale QR Code WhatsApp améliorée */}
+        {/* Modale QR Code WhatsApp */}
         {qrCode && (
           <Dialog open={!!qrCode} onOpenChange={() => setQrCode(null)}>
             <DialogContent className="sm:max-w-md">
@@ -346,9 +333,8 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
                     src={`data:image/png;base64,${qrCode}`} 
                     alt="QR Code WhatsApp" 
                     className="w-64 h-64 mx-auto"
-                    onError={(e) => {
-                      console.error('❌ Erreur chargement QR code:', e);
-                      addDebugInfo('Erreur chargement QR code - format invalide');
+                    onError={() => {
+                      console.error('❌ Erreur chargement QR code');
                       toast({
                         title: "Erreur QR Code",
                         description: "Format QR code invalide. Veuillez réessayer.",
@@ -358,7 +344,6 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
                     }}
                     onLoad={() => {
                       console.log('✅ QR code chargé avec succès');
-                      addDebugInfo('QR code chargé et affiché avec succès');
                     }}
                   />
                 </div>
@@ -395,61 +380,6 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
                     Fermer
                   </Button>
                 </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
-
-        {/* Modale OAuth intégrée */}
-        {authModal && (
-          <Dialog open={authModal.isOpen} onOpenChange={() => setAuthModal(null)}>
-            <DialogContent className="sm:max-w-4xl sm:max-h-[80vh]">
-              <DialogHeader>
-                <DialogTitle className="flex items-center">
-                  <ExternalLink className="h-5 w-5 mr-2" />
-                  Connexion {authModal.provider}
-                </DialogTitle>
-                <DialogDescription>
-                  Autorisez l'accès à votre compte {authModal.provider}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                  <p className="text-sm text-yellow-800">
-                    ⚠️ Une nouvelle fenêtre va s'ouvrir pour la connexion. 
-                    Revenez ici une fois l'autorisation terminée.
-                  </p>
-                </div>
-                <div className="flex gap-2 justify-center">
-                  <Button 
-                    onClick={() => {
-                      window.open(authModal.url, '_blank', 'width=500,height=600');
-                      toast({
-                        title: "Fenêtre ouverte",
-                        description: "Terminez la connexion dans la nouvelle fenêtre puis revenez ici",
-                      });
-                    }}
-                    className="bg-cta hover:bg-cta/90"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Ouvrir la connexion
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setAuthModal(null)}
-                  >
-                    Annuler
-                  </Button>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={handleAuthComplete}
-                  className="w-full"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  J'ai terminé la connexion, actualiser
-                </Button>
               </div>
             </DialogContent>
           </Dialog>
