@@ -56,15 +56,14 @@ serve(async (req) => {
 
     console.log('Traitement du paiement Stripe pour:', email);
 
-    // Créer ou récupérer le client Stripe
+    // Créer ou récupérer le client Stripe - CORRECTION: utiliser URLSearchParams pour GET
     let customerId;
-    const customerResponse = await fetch('https://api.stripe.com/v1/customers/search', {
+    const searchParams = new URLSearchParams({ query: `email:'${email}'` });
+    const customerResponse = await fetch(`https://api.stripe.com/v1/customers/search?${searchParams}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${stripeKey}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: `query=email:'${email}'`,
     });
 
     const existingCustomers = await customerResponse.json();
