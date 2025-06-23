@@ -1,10 +1,9 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { MessageSquare, Mail, Phone, Instagram, Facebook, Loader2, RefreshCw, Plus, QrCode, ExternalLink } from 'lucide-react';
+import { MessageSquare, Mail, Phone, Instagram, Facebook, Loader2, RefreshCw, Plus, QrCode } from 'lucide-react';
 import { useUnipile } from '@/hooks/useUnipile';
 import { useNorbertUser } from '@/hooks/useNorbertUser';
 import { useToast } from '@/hooks/use-toast';
@@ -134,38 +133,77 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
       if (checkWindowInterval.current) {
         clearInterval(checkWindowInterval.current);
       }
+      if (authWindowRef.current && !authWindowRef.current.closed) {
+        authWindowRef.current.close();
+      }
     };
   }, []);
 
+  // Surveiller la fenêtre OAuth et fermer automatiquement
   const startWindowMonitoring = (authWindow: Window, provider: string) => {
-    // Nettoyer l'ancien intervalle s'il existe
     if (checkWindowInterval.current) {
       clearInterval(checkWindowInterval.current);
     }
 
+    let hasDetectedSuccess = false;
+
     checkWindowInterval.current = setInterval(() => {
       try {
+        // Vérifier si la fenêtre existe toujours
         if (authWindow.closed) {
-          console.log(`🔄 Fenêtre OAuth ${provider} fermée, actualisation des comptes...`);
+          console.log(`🔄 Fenêtre OAuth ${provider} fermée`);
           clearInterval(checkWindowInterval.current!);
           checkWindowInterval.current = null;
           authWindowRef.current = null;
           
-          // Actualiser les comptes après fermeture
-          setTimeout(() => {
-            setHasLoadedAccounts(false);
-            fetchAccountsOnce();
-          }, 2000);
-          
-          toast({
-            title: "Vérification en cours",
-            description: `Vérification de la connexion ${provider}...`,
-          });
+          if (!hasDetectedSuccess) {
+            // Actualiser les comptes après fermeture
+            setTimeout(() => {
+              setHasLoadedAccounts(false);
+              fetchAccountsOnce();
+            }, 1000);
+          }
+          return;
+        }
+
+        // Essayer de détecter une redirection de succès
+        try {
+          const currentUrl = authWindow.location.href;
+          if (currentUrl && (
+            currentUrl.includes('connection=success') || 
+            currentUrl.includes('success') ||
+            currentUrl.includes('code=') // Paramètre d'autorisation OAuth
+          )) {
+            console.log(`✅ Succès détecté pour ${provider}, fermeture de la fenêtre`);
+            hasDetectedSuccess = true;
+            authWindow.close();
+            
+            toast({
+              title: "Connexion réussie",
+              description: `Votre compte ${provider} a été connecté avec succès`,
+            });
+            
+            // Actualiser immédiatement les comptes
+            setTimeout(() => {
+              setHasLoadedAccounts(false);
+              fetchAccountsOnce();
+            }, 500);
+          }
+        } catch (crossOriginError) {
+          // Erreur cross-origin normale, continuer la surveillance
         }
       } catch (error) {
-        // Erreur d'accès cross-origin normale, continuer la surveillance
+        // Erreur générale, continuer la surveillance
       }
     }, 1000);
+
+    // Timeout de sécurité - fermer après 5 minutes
+    setTimeout(() => {
+      if (authWindow && !authWindow.closed) {
+        console.log(`⏰ Timeout pour ${provider}, fermeture de la fenêtre`);
+        authWindow.close();
+      }
+    }, 5 * 60 * 1000);
   };
 
   const handleConnectProvider = async (provider: string) => {
@@ -196,7 +234,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           description: "Scannez le QR code avec WhatsApp pour connecter votre compte",
         });
       } else if (result.authorization_url) {
-        // Pour OAuth, ouvrir dans une nouvelle fenêtre
+        // Pour OAuth, ouvrir dans une nouvelle fenêtre centrée
         console.log('🔗 URL d\'autorisation reçue:', result.authorization_url);
         
         // Fermer la fenêtre précédente si elle existe
@@ -204,17 +242,26 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           authWindowRef.current.close();
         }
         
+        // Calculer la position centrée
+        const width = 500;
+        const height = 600;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+        
         // Ouvrir dans une nouvelle fenêtre
         const authWindow = window.open(
-          result.authorization_url, 
-          `oauth-${provider}`,
-          'width=500,height=600,scrollbars=yes,resizable=yes,left=' + 
-          (window.screen.width / 2 - 250) + ',top=' + 
-          (window.screen.height / 2 - 300)
+          result.authorization_url,
+          `oauth-${provider}-${Date.now()}`,
+          `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no`
         );
         
         if (authWindow) {
           authWindowRef.current = authWindow;
+          
+          // Donner le focus à la nouvelle fenêtre
+          authWindow.focus();
+          
+          // Démarrer la surveillance
           startWindowMonitoring(authWindow, provider);
           
           toast({
