@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreditCard, ArrowLeft, Check, Smartphone } from 'lucide-react';
 import StripeElements from './StripeElements';
+import PaymentForm from './PaymentForm';
 
 interface StripePaymentProps {
   signupId: string;
@@ -13,15 +14,26 @@ interface StripePaymentProps {
 }
 
 const StripePayment = ({ signupId, email, onComplete, onBack }: StripePaymentProps) => {
-  const [paymentMethod, setPaymentMethod] = useState<'web' | 'native'>('native');
+  const [paymentMethod, setPaymentMethod] = useState<'form' | 'checkout' | 'choice'>('choice');
 
-  if (paymentMethod === 'native') {
+  if (paymentMethod === 'form') {
+    return (
+      <PaymentForm 
+        signupId={signupId}
+        email={email}
+        onComplete={onComplete}
+        onBack={() => setPaymentMethod('choice')}
+      />
+    );
+  }
+
+  if (paymentMethod === 'checkout') {
     return (
       <StripeElements 
         signupId={signupId}
         email={email}
         onComplete={onComplete}
-        onBack={() => setPaymentMethod('web')}
+        onBack={() => setPaymentMethod('choice')}
       />
     );
   }
@@ -40,26 +52,23 @@ const StripePayment = ({ signupId, email, onComplete, onBack }: StripePaymentPro
         </CardHeader>
         <CardContent className="space-y-4">
           <Button 
-            onClick={() => setPaymentMethod('native')} 
-            className="w-full h-16 flex items-center justify-center space-x-3"
-            variant="outline"
-          >
-            <Smartphone className="w-6 h-6" />
-            <div className="text-left">
-              <div className="font-semibold">Paiement intégré</div>
-              <div className="text-sm text-gray-600">Restez dans l'application</div>
-            </div>
-          </Button>
-
-          <Button 
-            onClick={() => {
-              // Logique existante pour ouvrir Stripe Checkout
-              window.open('https://checkout.stripe.com', '_blank');
-            }} 
+            onClick={() => setPaymentMethod('form')} 
             className="w-full h-16 flex items-center justify-center space-x-3"
             variant="outline"
           >
             <CreditCard className="w-6 h-6" />
+            <div className="text-left">
+              <div className="font-semibold">Saisie directe</div>
+              <div className="text-sm text-gray-600">Entrez vos coordonnées bancaires</div>
+            </div>
+          </Button>
+
+          <Button 
+            onClick={() => setPaymentMethod('checkout')} 
+            className="w-full h-16 flex items-center justify-center space-x-3"
+            variant="outline"
+          >
+            <Smartphone className="w-6 h-6" />
             <div className="text-left">
               <div className="font-semibold">Stripe Checkout</div>
               <div className="text-sm text-gray-600">Page web sécurisée</div>
