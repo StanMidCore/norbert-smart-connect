@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { MessageSquare, Mail, Phone, Instagram, Facebook, Loader2, RefreshCw, Plus, QrCode, ExternalLink } from 'lucide-react';
+import { MessageSquare, Mail, Phone, Instagram, Facebook, Loader2, RefreshCw, Plus, QrCode, ExternalLink, AlertCircle } from 'lucide-react';
 import { useUnipile } from '@/hooks/useUnipile';
 import { useNorbertUser } from '@/hooks/useNorbertUser';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +23,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   const [hasInitialized, setHasInitialized] = useState(false);
   const [hasLoadedAccounts, setHasLoadedAccounts] = useState(false);
   const [authModal, setAuthModal] = useState<{ isOpen: boolean; provider: string; url: string } | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>('');
   const fetchingRef = useRef(false);
   
   const channelIcons = {
@@ -49,10 +50,18 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     { id: 'facebook', name: 'Facebook', description: 'Messages Facebook' },
   ];
 
+  // Ajouter une fonction de debug
+  const addDebugInfo = (info: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setDebugInfo(prev => `${prev}\n[${timestamp}] ${info}`);
+    console.log(`[DEBUG] ${info}`);
+  };
+
   // Initialiser l'utilisateur au chargement - une seule fois
   useEffect(() => {
     if (!user && !hasInitialized) {
       console.log('🔄 Initialisation utilisateur...');
+      addDebugInfo('Initialisation utilisateur...');
       getCurrentUser();
       setHasInitialized(true);
     }
@@ -62,10 +71,14 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   const fetchAccountsOnce = useCallback(async () => {
     if (user && !fetchingRef.current && !loading && !hasLoadedAccounts) {
       console.log('📡 Récupération des comptes pour:', user.email);
+      addDebugInfo(`Récupération des comptes pour: ${user.email}`);
       fetchingRef.current = true;
       setHasLoadedAccounts(true);
       try {
         await fetchAccounts();
+        addDebugInfo('Comptes récupérés avec succès');
+      } catch (err) {
+        addDebugInfo(`Erreur récupération comptes: ${err.message || err}`);
       } finally {
         fetchingRef.current = false;
       }
@@ -83,23 +96,23 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     const provider = urlParams.get('provider');
     
     if (connection === 'success' && provider) {
+      addDebugInfo(`Connexion ${provider} réussie via URL`);
       toast({
         title: "Connexion réussie",
         description: `Votre compte ${provider} a été connecté avec succès`,
       });
-      // Nettoyer l'URL et actualiser les comptes
       window.history.replaceState({}, '', window.location.pathname);
       if (!fetchingRef.current) {
-        setHasLoadedAccounts(false); // Permettre un nouveau chargement
+        setHasLoadedAccounts(false);
         fetchAccountsOnce();
       }
     } else if (connection === 'failed' && provider) {
+      addDebugInfo(`Connexion ${provider} échouée via URL`);
       toast({
         title: "Échec de la connexion",
         description: `Impossible de connecter votre compte ${provider}`,
         variant: "destructive",
       });
-      // Nettoyer l'URL
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, [toast, fetchAccountsOnce]);
@@ -108,6 +121,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   useEffect(() => {
     if (channels.length > 0) {
       console.log('📊 Mise à jour des canaux connectés, nombre:', channels.length);
+      addDebugInfo(`${channels.length} canaux connectés trouvés`);
       const normalizedChannels: Channel[] = channels
         .filter(ch => ch.status === 'connected')
         .map((ch, index) => ({
@@ -137,38 +151,65 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     setConnecting(provider);
     setQrCode(null);
     setAuthModal(null);
+    addDebugInfo(`Tentative de connexion ${provider}...`);
     
     try {
       console.log(`🔌 Tentative de connexion ${provider}...`);
       const result = await connectAccount(provider);
       
+      addDebugInfo(`Réponse reçue pour ${provider}: ${JSON.stringify(result, null, 2)}`);
+      
       if (result.qr_code) {
-        // Pour WhatsApp, afficher le QR code dans une modale
+        // Pour WhatsApp, afficher le QR code
         console.log('📱 QR Code WhatsApp reçu');
+        addDebugInfo('QR Code WhatsApp reçu et affiché');
         setQrCode(result.qr_code);
         toast({
           title: "QR Code généré",
           description: "Scannez le QR code avec WhatsApp pour connecter votre compte",
         });
       } else if (result.authorization_url) {
-        // Pour OAuth, ouvrir dans une modale/iframe au lieu d'une nouvelle fenêtre
+        // Pour OAuth, NE PAS rediriger dans la même fenêtre
         console.log('🔗 URL d\'autorisation reçue:', result.authorization_url);
-        setAuthModal({
-          isOpen: true,
-          provider: provider,
-          url: result.authorization_url
-        });
-        toast({
-          title: "Autorisation requise",
-          description: `Connectez-vous à ${provider} dans la fenêtre qui s'ouvre`,
-        });
+        addDebugInfo(`URL d'autorisation reçue: ${result.authorization_url}`);
+        
+        // Ouvrir dans une nouvelle fenêtre
+        const authWindow = window.open(
+          result.authorization_url, 
+          'oauth-window',
+          'width=500,height=600,scrollbars=yes,resizable=yes'
+        );
+        
+        if (authWindow) {
+          toast({
+            title: "Fenêtre d'autorisation ouverte",
+            description: `Autorisez l'accès à ${provider} dans la nouvelle fenêtre, puis revenez ici`,
+          });
+          
+          // Vérifier périodiquement si la fenêtre est fermée
+          const checkClosed = setInterval(() => {
+            if (authWindow.closed) {
+              clearInterval(checkClosed);
+              addDebugInfo('Fenêtre OAuth fermée, actualisation des comptes...');
+              // Actualiser les comptes après fermeture de la fenêtre
+              setTimeout(() => {
+                setHasLoadedAccounts(false);
+                fetchAccountsOnce();
+              }, 1000);
+            }
+          }, 1000);
+        } else {
+          throw new Error('Impossible d\'ouvrir la fenêtre d\'autorisation. Vérifiez que les popups ne sont pas bloquées.');
+        }
       } else if (result.requires_manual_setup) {
+        addDebugInfo(`Configuration manuelle requise pour ${provider}`);
         toast({
           title: "Configuration manuelle requise",
           description: result.error,
           variant: "destructive",
         });
       } else {
+        addDebugInfo(`Connexion ${provider} réussie directement`);
         toast({
           title: "Connexion réussie",
           description: `Votre compte ${provider} a été connecté`,
@@ -180,6 +221,8 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
       }
     } catch (error) {
       console.error('❌ Erreur connexion:', error);
+      addDebugInfo(`Erreur connexion ${provider}: ${error.message || error}`);
+      
       let errorMessage = `Impossible de connecter ${provider}. `;
       
       if (error.message?.includes('Invalid credentials') || error.message?.includes('Configuration manquante')) {
@@ -209,6 +252,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
 
   const handleRefreshAccounts = async () => {
     if (fetchingRef.current) return;
+    addDebugInfo('Actualisation manuelle des comptes...');
     setHasLoadedAccounts(false);
     await fetchAccountsOnce();
   };
@@ -235,6 +279,32 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
             Bonjour {user.email} ! Ajoutez vos comptes pour recevoir et répondre aux messages
           </p>
         </div>
+
+        {/* Debug Panel */}
+        <Card className="mb-4 border-yellow-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center">
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Debug Info
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <textarea 
+              value={debugInfo} 
+              readOnly 
+              className="w-full h-32 text-xs font-mono bg-gray-50 p-2 rounded border resize-none"
+              placeholder="Les informations de debug apparaîtront ici..."
+            />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setDebugInfo('')}
+              className="mt-2"
+            >
+              Effacer les logs
+            </Button>
+          </CardContent>
+        </Card>
 
         {error && (
           <Card className="mb-6 border-red-200">
@@ -278,6 +348,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
                     className="w-64 h-64 mx-auto"
                     onError={(e) => {
                       console.error('❌ Erreur chargement QR code:', e);
+                      addDebugInfo('Erreur chargement QR code - format invalide');
                       toast({
                         title: "Erreur QR Code",
                         description: "Format QR code invalide. Veuillez réessayer.",
@@ -285,7 +356,10 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
                       });
                       setQrCode(null);
                     }}
-                    onLoad={() => console.log('✅ QR code chargé avec succès')}
+                    onLoad={() => {
+                      console.log('✅ QR code chargé avec succès');
+                      addDebugInfo('QR code chargé et affiché avec succès');
+                    }}
                   />
                 </div>
                 <div className="space-y-2">
@@ -498,6 +572,15 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
             <p className="text-sm text-main opacity-70 mb-2">
               Connectez vos comptes pour commencer à utiliser Norbert
             </p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefreshAccounts}
+              disabled={fetchingRef.current}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Actualiser les comptes
+            </Button>
           </div>
         )}
       </div>
