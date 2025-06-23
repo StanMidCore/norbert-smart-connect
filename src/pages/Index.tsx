@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import SignupFlow from '@/components/SignupFlow';
 import ChannelSetup from '@/components/ChannelSetup';
@@ -10,9 +11,12 @@ type AppScreen = 'signup' | 'channels' | 'profile' | 'dashboard' | 'calendar' | 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('signup');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [hasCheckedUrlParams, setHasCheckedUrlParams] = useState(false);
   
-  // Vérifier les paramètres URL au chargement
+  // Vérifier les paramètres URL au chargement - une seule fois
   useEffect(() => {
+    if (hasCheckedUrlParams) return;
+    
     const urlParams = new URLSearchParams(window.location.search);
     const paymentSuccess = urlParams.get('payment_success');
     const paymentError = urlParams.get('payment_error');
@@ -27,7 +31,9 @@ const Index = () => {
       setCurrentScreen('signup');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, []);
+    
+    setHasCheckedUrlParams(true);
+  }, [hasCheckedUrlParams]);
   
   const handleChannelSetupComplete = () => {
     console.log('🔗 Configuration des canaux terminée, redirection vers profil');

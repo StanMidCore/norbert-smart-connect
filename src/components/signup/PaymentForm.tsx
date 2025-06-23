@@ -70,6 +70,12 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (loading) {
+      console.log('⚠️ Soumission ignorée - traitement en cours');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -134,11 +140,9 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
       console.log('🎉 Paiement complété avec succès');
       toast.success('Paiement effectué avec succès !');
       
-      // Redirection vers la configuration des canaux
-      console.log('🔄 Redirection vers la configuration des canaux...');
-      setTimeout(() => {
-        onComplete();
-      }, 1000);
+      // Redirection immédiate vers la configuration des canaux
+      console.log('🔄 Appel immédiat de onComplete pour redirection...');
+      onComplete();
 
     } catch (err) {
       console.error('❌ Erreur paiement:', err);
@@ -171,6 +175,7 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
                 value={cardData.cardName}
                 onChange={(e) => setCardData({ ...cardData, cardName: e.target.value })}
                 required
+                disabled={loading}
               />
             </div>
 
@@ -183,6 +188,7 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
                 value={cardData.cardNumber}
                 onChange={handleCardNumberChange}
                 required
+                disabled={loading}
               />
             </div>
 
@@ -196,6 +202,7 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
                   value={cardData.expiryDate}
                   onChange={handleExpiryDateChange}
                   required
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -207,6 +214,7 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
                   value={cardData.cvc}
                   onChange={handleCvcChange}
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -253,7 +261,12 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
             </Button>
           </form>
 
-          <Button variant="ghost" onClick={onBack} className="w-full">
+          <Button 
+            variant="ghost" 
+            onClick={onBack} 
+            className="w-full"
+            disabled={loading}
+          >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Retour
           </Button>
