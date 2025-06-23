@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -139,69 +140,100 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     };
   }, []);
 
-  // Surveiller la fenêtre OAuth et fermer automatiquement
+  // Surveiller la fenêtre OAuth avec fermeture automatique améliorée
   const startWindowMonitoring = (authWindow: Window, provider: string) => {
     if (checkWindowInterval.current) {
       clearInterval(checkWindowInterval.current);
     }
 
-    let hasDetectedSuccess = false;
+    console.log(`🔍 Début surveillance fenêtre ${provider}`);
+    let checkCount = 0;
+    const maxChecks = 300; // 5 minutes max (300 * 1000ms)
 
     checkWindowInterval.current = setInterval(() => {
+      checkCount++;
+      
       try {
-        // Vérifier si la fenêtre existe toujours
+        // Vérifier si la fenêtre est fermée
         if (authWindow.closed) {
-          console.log(`🔄 Fenêtre OAuth ${provider} fermée`);
+          console.log(`🔒 Fenêtre ${provider} fermée par l'utilisateur`);
           clearInterval(checkWindowInterval.current!);
           checkWindowInterval.current = null;
           authWindowRef.current = null;
+          setConnecting(null);
           
-          if (!hasDetectedSuccess) {
-            // Actualiser les comptes après fermeture
-            setTimeout(() => {
-              setHasLoadedAccounts(false);
-              fetchAccountsOnce();
-            }, 1000);
-          }
+          // Actualiser les comptes après fermeture
+          setTimeout(() => {
+            console.log(`🔄 Actualisation des comptes après fermeture fenêtre ${provider}`);
+            setHasLoadedAccounts(false);
+            fetchAccountsOnce();
+          }, 1000);
           return;
         }
 
-        // Essayer de détecter une redirection de succès
+        // Timeout de sécurité
+        if (checkCount >= maxChecks) {
+          console.log(`⏰ Timeout surveillance ${provider}, fermeture forcée`);
+          authWindow.close();
+          return;
+        }
+
+        // Essayer de détecter le succès via l'URL
         try {
           const currentUrl = authWindow.location.href;
-          if (currentUrl && (
-            currentUrl.includes('connection=success') || 
-            currentUrl.includes('success') ||
-            currentUrl.includes('code=') // Paramètre d'autorisation OAuth
-          )) {
-            console.log(`✅ Succès détecté pour ${provider}, fermeture de la fenêtre`);
-            hasDetectedSuccess = true;
+          
+          // Vérifier si on est sur une page de succès
+          if (currentUrl.includes('connection=success') || 
+              currentUrl.includes('success') || 
+              currentUrl.includes('code=') ||
+              currentUrl.includes('access_token=') ||
+              // Détecter si on est revenu sur notre domaine avec des paramètres de succès
+              (currentUrl.includes(window.location.origin) && 
+               (currentUrl.includes('?') || currentUrl.includes('#')))) {
+            
+            console.log(`✅ Succès OAuth détecté pour ${provider}: ${currentUrl}`);
+            
+            // Fermer la fenêtre immédiatement
             authWindow.close();
             
+            // Arrêter la surveillance
+            clearInterval(checkWindowInterval.current!);
+            checkWindowInterval.current = null;
+            authWindowRef.current = null;
+            
+            // Notifier le succès
             toast({
               title: "Connexion réussie",
               description: `Votre compte ${provider} a été connecté avec succès`,
             });
             
-            // Actualiser immédiatement les comptes
+            // Actualiser les comptes
             setTimeout(() => {
+              console.log(`🔄 Actualisation des comptes après succès ${provider}`);
+              setConnecting(null);
               setHasLoadedAccounts(false);
               fetchAccountsOnce();
             }, 500);
+            
+            return;
           }
         } catch (crossOriginError) {
           // Erreur cross-origin normale, continuer la surveillance
+          // On ne peut pas accéder à l'URL à cause des restrictions CORS
         }
+
       } catch (error) {
         // Erreur générale, continuer la surveillance
+        console.log(`⚠️ Erreur surveillance ${provider}:`, error);
       }
     }, 1000);
 
-    // Timeout de sécurité - fermer après 5 minutes
+    // Timeout global de sécurité - fermer après 5 minutes
     setTimeout(() => {
       if (authWindow && !authWindow.closed) {
-        console.log(`⏰ Timeout pour ${provider}, fermeture de la fenêtre`);
+        console.log(`⏰ Timeout global pour ${provider}, fermeture de la fenêtre`);
         authWindow.close();
+        setConnecting(null);
       }
     }, 5 * 60 * 1000);
   };
@@ -229,6 +261,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
         // Pour WhatsApp, afficher le QR code
         console.log('📱 QR Code WhatsApp reçu');
         setQrCode(result.qr_code);
+        setConnecting(null);
         toast({
           title: "QR Code généré",
           description: "Scannez le QR code avec WhatsApp pour connecter votre compte",
@@ -243,16 +276,16 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
         }
         
         // Calculer la position centrée
-        const width = 500;
-        const height = 600;
-        const left = window.screen.width / 2 - width / 2;
-        const top = window.screen.height / 2 - height / 2;
+        const width = 600;
+        const height = 700;
+        const left = Math.max(0, Math.floor(window.screen.width / 2 - width / 2));
+        const top = Math.max(0, Math.floor(window.screen.height / 2 - height / 2));
         
-        // Ouvrir dans une nouvelle fenêtre
+        // Ouvrir dans une nouvelle fenêtre popup
         const authWindow = window.open(
           result.authorization_url,
           `oauth-${provider}-${Date.now()}`,
-          `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no`
+          `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no,directories=no`
         );
         
         if (authWindow) {
@@ -261,7 +294,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           // Donner le focus à la nouvelle fenêtre
           authWindow.focus();
           
-          // Démarrer la surveillance
+          // Démarrer la surveillance avec fermeture automatique
           startWindowMonitoring(authWindow, provider);
           
           toast({
@@ -272,12 +305,14 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           throw new Error('Impossible d\'ouvrir la fenêtre d\'autorisation. Vérifiez que les popups ne sont pas bloquées.');
         }
       } else if (result.requires_manual_setup) {
+        setConnecting(null);
         toast({
           title: "Configuration manuelle requise",
           description: result.error,
           variant: "destructive",
         });
       } else {
+        setConnecting(null);
         toast({
           title: "Connexion réussie",
           description: `Votre compte ${provider} a été connecté`,
@@ -289,6 +324,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
       }
     } catch (error) {
       console.error('❌ Erreur connexion:', error);
+      setConnecting(null);
       
       let errorMessage = `Impossible de connecter ${provider}. `;
       
@@ -305,8 +341,6 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
         description: errorMessage,
         variant: "destructive",
       });
-    } finally {
-      setConnecting(null);
     }
   };
 
