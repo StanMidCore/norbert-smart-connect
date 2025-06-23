@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,6 +73,8 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
     setLoading(true);
 
     try {
+      console.log('🔄 Début du processus de paiement pour:', email);
+      
       // Validation basique
       if (!cardData.cardName || !cardData.cardNumber || !cardData.expiryDate || !cardData.cvc) {
         throw new Error('Veuillez remplir tous les champs');
@@ -89,12 +92,14 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
         throw new Error('CVC invalide');
       }
 
-      console.log('Traitement du paiement avec les données de carte...');
+      console.log('✅ Validation des données de carte réussie');
 
       // Simuler le traitement du paiement
+      console.log('💳 Simulation du paiement en cours...');
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Marquer le paiement comme complété et déclencher la création des comptes
+      // Marquer le paiement comme complété
+      console.log('📝 Mise à jour du statut de paiement...');
       const { error: updateError } = await supabase
         .from('signup_process')
         .update({
@@ -104,11 +109,14 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
         .eq('id', signupId);
 
       if (updateError) {
+        console.error('❌ Erreur mise à jour signup:', updateError);
         throw updateError;
       }
 
-      // Appeler la fonction pour créer les comptes automatiquement
-      console.log('Création des comptes automatiques...');
+      console.log('✅ Statut de paiement mis à jour');
+
+      // Créer le compte utilisateur automatiquement
+      console.log('🚀 Création du compte utilisateur...');
       const { data: accountData, error: accountError } = await supabase.functions.invoke('create-user-account', {
         body: { 
           email: email,
@@ -117,22 +125,23 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
       });
 
       if (accountError) {
-        console.error('Erreur création compte:', accountError);
-        // Ne pas faire échouer le processus si les comptes ne peuvent pas être créés
-        toast.error('Paiement réussi mais erreur lors de la création des comptes. Contactez le support.');
+        console.error('❌ Erreur création compte:', accountError);
+        toast.error('Paiement réussi mais erreur lors de la création du compte. Contactez le support.');
       } else {
-        console.log('Comptes créés avec succès:', accountData);
+        console.log('✅ Compte utilisateur créé:', accountData);
       }
 
+      console.log('🎉 Paiement complété avec succès');
       toast.success('Paiement effectué avec succès !');
       
-      // Rediriger vers la configuration des canaux
+      // Redirection vers la configuration des canaux
+      console.log('🔄 Redirection vers la configuration des canaux...');
       setTimeout(() => {
         onComplete();
       }, 1000);
 
     } catch (err) {
-      console.error('Erreur paiement:', err);
+      console.error('❌ Erreur paiement:', err);
       toast.error(err instanceof Error ? err.message : 'Erreur de paiement');
     } finally {
       setLoading(false);

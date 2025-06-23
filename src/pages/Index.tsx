@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import SignupFlow from '@/components/SignupFlow';
 import ChannelSetup from '@/components/ChannelSetup';
@@ -19,26 +18,29 @@ const Index = () => {
     const paymentError = urlParams.get('payment_error');
     
     if (paymentSuccess === 'true') {
-      // Paiement réussi, aller aux canaux
+      console.log('🎉 Paiement réussi détecté dans l\'URL, redirection vers canaux');
       setCurrentScreen('channels');
       // Nettoyer l'URL
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (paymentError === 'true') {
-      // Erreur de paiement, rester sur signup
+      console.log('❌ Erreur de paiement détectée dans l\'URL');
       setCurrentScreen('signup');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
   
   const handleChannelSetupComplete = () => {
+    console.log('🔗 Configuration des canaux terminée, redirection vers profil');
     setCurrentScreen('profile');
   };
   
   const handleProfileSetupComplete = () => {
+    console.log('👤 Configuration du profil terminée, redirection vers dashboard');
     setCurrentScreen('dashboard');
   };
   
   const handleNavigation = (screen: string) => {
+    console.log('🧭 Navigation vers:', screen);
     setCurrentScreen(screen as AppScreen);
   };
 
@@ -52,12 +54,17 @@ const Index = () => {
     setCurrentScreen('dashboard');
   };
 
+  const handleChannelSetup = () => {
+    console.log('🔗 Redirection vers la configuration des canaux');
+    setCurrentScreen('channels');
+  };
+
   // Écran d'inscription
   if (currentScreen === 'signup') {
     return (
       <SignupFlow 
         onComplete={() => setCurrentScreen('dashboard')}
-        onChannelSetup={() => setCurrentScreen('channels')}
+        onChannelSetup={handleChannelSetup}
         onProfileSetup={() => setCurrentScreen('profile')}
       />
     );
@@ -65,6 +72,7 @@ const Index = () => {
   
   // Écran configuration canaux
   if (currentScreen === 'channels') {
+    console.log('🔗 Affichage de l\'écran de configuration des canaux');
     return <ChannelSetup onComplete={handleChannelSetupComplete} />;
   }
   
@@ -156,7 +164,7 @@ const Index = () => {
   return (
     <SignupFlow 
       onComplete={() => setCurrentScreen('dashboard')}
-      onChannelSetup={() => setCurrentScreen('channels')}
+      onChannelSetup={handleChannelSetup}
       onProfileSetup={() => setCurrentScreen('profile')}
     />
   );
