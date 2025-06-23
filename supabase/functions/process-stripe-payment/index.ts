@@ -13,11 +13,11 @@ serve(async (req) => {
   }
 
   try {
-    const { signup_id, email, card, billing_details } = await req.json();
+    const { signup_id, email } = await req.json();
     
-    if (!signup_id || !email || !card) {
+    if (!signup_id || !email) {
       return new Response(JSON.stringify({ 
-        error: 'Données de paiement manquantes',
+        error: 'ID inscription et email requis',
         success: false 
       }), {
         status: 400,
@@ -54,145 +54,47 @@ serve(async (req) => {
       throw new Error('Clé Stripe non configurée');
     }
 
-    console.log('Traitement du paiement Stripe pour:', email);
+    console.log('Création session Stripe Checkout pour:', email);
 
-    // Créer ou récupérer le client Stripe - CORRECTION: utiliser URLSearchParams pour GET
-    let customerId;
-    const searchParams = new URLSearchParams({ query: `email:'${email}'` });
-    const customerResponse = await fetch(`https://api.stripe.com/v1/customers/search?${searchParams}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${stripeKey}`,
-      },
-    });
-
-    const existingCustomers = await customerResponse.json();
-    
-    if (existingCustomers.data && existingCustomers.data.length > 0) {
-      customerId = existingCustomers.data[0].id;
-    } else {
-      // Créer un nouveau client
-      const newCustomerResponse = await fetch('https://api.stripe.com/v1/customers', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${stripeKey}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          email: email,
-          name: billing_details.name
-        })
-      });
-      
-      const newCustomer = await newCustomerResponse.json();
-      customerId = newCustomer.id;
-    }
-
-    // Créer une méthode de paiement
-    const paymentMethodResponse = await fetch('https://api.stripe.com/v1/payment_methods', {
+    // Créer une session Stripe Checkout sécurisée
+    const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${stripeKey}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        'type': 'card',
-        'card[number]': card.number,
-        'card[exp_month]': card.exp_month.toString(),
-        'card[exp_year]': card.exp_year.toString(),
-        'card[cvc]': card.cvc,
-        'billing_details[name]': billing_details.name,
-        'billing_details[email]': billing_details.email
-      })
-    });
-
-    if (!paymentMethodResponse.ok) {
-      const errorData = await paymentMethodResponse.json();
-      console.error('Erreur création méthode de paiement:', errorData);
-      throw new Error(errorData.error?.message || 'Erreur lors de la création de la méthode de paiement');
-    }
-
-    const paymentMethod = await paymentMethodResponse.json();
-
-    // Attacher la méthode de paiement au client
-    await fetch(`https://api.stripe.com/v1/payment_methods/${paymentMethod.id}/attach`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${stripeKey}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        customer: customerId
-      })
-    });
-
-    // Créer l'abonnement avec période d'essai
-    const subscriptionResponse = await fetch('https://api.stripe.com/v1/subscriptions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${stripeKey}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        customer: customerId,
-        'items[0][price_data][currency]': 'eur',
-        'items[0][price_data][product_data][name]': 'Norbert - Assistant IA',
-        'items[0][price_data][recurring][interval]': 'month',
-        'items[0][price_data][unit_amount]': '19700',
-        default_payment_method: paymentMethod.id,
-        trial_period_days: '15',
+        'mode': 'subscription',
+        'payment_method_types[0]': 'card',
+        'line_items[0][price_data][currency]': 'eur',
+        'line_items[0][price_data][product_data][name]': 'Norbert - Assistant IA',
+        'line_items[0][price_data][product_data][description]': 'Assistant IA automatique pour votre business',
+        'line_items[0][price_data][recurring][interval]': 'month',
+        'line_items[0][price_data][unit_amount]': '19700', // 197€ en centimes
+        'line_items[0][quantity]': '1',
+        'subscription_data[trial_period_days]': '15',
+        'customer_email': email,
+        'success_url': `${req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co'}/?payment_success=true&signup_id=${signup_id}`,
+        'cancel_url': `${req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co'}/?payment_cancelled=true`,
         'metadata[signup_id]': signup_id,
         'metadata[business_name]': signup.business_name
       })
     });
 
-    if (!subscriptionResponse.ok) {
-      const errorData = await subscriptionResponse.json();
-      console.error('Erreur création abonnement:', errorData);
-      throw new Error(errorData.error?.message || 'Erreur lors de la création de l\'abonnement');
+    if (!stripeResponse.ok) {
+      const errorText = await stripeResponse.text();
+      console.error('Erreur Stripe:', errorText);
+      throw new Error(`Erreur Stripe: ${errorText}`);
     }
 
-    const subscription = await subscriptionResponse.json();
+    const session = await stripeResponse.json();
 
-    console.log('Abonnement créé avec succès:', subscription.id);
-
-    // Mettre à jour les données d'inscription
-    const { error: updateError } = await supabase
-      .from('signup_process')
-      .update({
-        payment_completed: true,
-        stripe_customer_id: customerId,
-        stripe_subscription_id: subscription.id,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', signup_id);
-
-    if (updateError) {
-      console.error('Erreur mise à jour signup:', updateError);
-      throw updateError;
-    }
-
-    // Créer le compte utilisateur final
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .insert({
-        email: signup.email,
-        autopilot: true
-      })
-      .select()
-      .single();
-
-    if (userError) {
-      console.error('Erreur création utilisateur:', userError);
-      // Ne pas faire échouer si l'utilisateur existe déjà
-    }
-
-    console.log('Utilisateur créé:', user?.id);
+    console.log('Session Stripe créée avec succès:', session.id);
 
     return new Response(JSON.stringify({ 
       success: true,
-      subscription_id: subscription.id,
-      customer_id: customerId
+      checkout_url: session.url,
+      session_id: session.id
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
