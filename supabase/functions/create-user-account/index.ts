@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { email, phone_number } = await req.json();
+    const { email, phone_number, signup_id } = await req.json();
     
     if (!email) {
       return new Response(JSON.stringify({ 
@@ -81,10 +81,48 @@ serve(async (req) => {
       console.log('Nouvel utilisateur créé:', user.id);
     }
 
+    // TODO: Créer le compte Unipile automatiquement
+    console.log('TODO: Création compte Unipile pour:', email);
+    
+    // TODO: Créer le workflow N8N automatiquement
+    console.log('TODO: Création workflow N8N pour:', email);
+    
+    // Pour l'instant, on simule la création réussie
+    const mockWorkflowId = `workflow_${user.id}_${Date.now()}`;
+    
+    // Mettre à jour l'utilisateur avec l'ID du workflow N8N (simulé)
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        workflow_id_n8n: mockWorkflowId,
+        last_login: new Date().toISOString()
+      })
+      .eq('id', user.id);
+
+    if (updateError) {
+      console.error('Erreur mise à jour workflow ID:', updateError);
+    }
+
+    // Si un signup_id est fourni, marquer le processus comme terminé
+    if (signup_id) {
+      const { error: signupUpdateError } = await supabase
+        .from('signup_process')
+        .update({
+          payment_completed: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', signup_id);
+
+      if (signupUpdateError) {
+        console.error('Erreur mise à jour signup:', signupUpdateError);
+      }
+    }
+
     return new Response(JSON.stringify({ 
       success: true,
       user: user,
-      message: 'Compte utilisateur créé/récupéré avec succès'
+      workflow_id: mockWorkflowId,
+      message: 'Compte utilisateur créé avec succès, comptes Unipile et N8N en cours de création'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

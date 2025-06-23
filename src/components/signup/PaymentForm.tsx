@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,9 +24,7 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
   });
 
   const formatCardNumber = (value: string) => {
-    // Supprimer tous les espaces et caractères non numériques
     const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    // Ajouter un espace tous les 4 chiffres
     const matches = v.match(/\d{4,16}/g);
     const match = matches && matches[0] || '';
     const parts = [];
@@ -94,12 +91,11 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
 
       console.log('Traitement du paiement avec les données de carte...');
 
-      // Ici, nous devrions normalement utiliser Stripe Elements ou une autre méthode sécurisée
-      // Pour la démo, nous simulons un paiement réussi
+      // Simuler le traitement du paiement
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Marquer le paiement comme complété dans la base de données
-      const { error } = await supabase
+      // Marquer le paiement comme complété et déclencher la création des comptes
+      const { error: updateError } = await supabase
         .from('signup_process')
         .update({
           payment_completed: true,
@@ -107,12 +103,34 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
         })
         .eq('id', signupId);
 
-      if (error) {
-        throw error;
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Appeler la fonction pour créer les comptes automatiquement
+      console.log('Création des comptes automatiques...');
+      const { data: accountData, error: accountError } = await supabase.functions.invoke('create-user-account', {
+        body: { 
+          email: email,
+          signup_id: signupId 
+        }
+      });
+
+      if (accountError) {
+        console.error('Erreur création compte:', accountError);
+        // Ne pas faire échouer le processus si les comptes ne peuvent pas être créés
+        toast.error('Paiement réussi mais erreur lors de la création des comptes. Contactez le support.');
+      } else {
+        console.log('Comptes créés avec succès:', accountData);
       }
 
       toast.success('Paiement effectué avec succès !');
-      onComplete();
+      
+      // Rediriger vers la configuration des canaux
+      setTimeout(() => {
+        onComplete();
+      }, 1000);
+
     } catch (err) {
       console.error('Erreur paiement:', err);
       toast.error(err instanceof Error ? err.message : 'Erreur de paiement');

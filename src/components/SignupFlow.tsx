@@ -18,16 +18,20 @@ const SignupFlow = ({ onComplete, onChannelSetup, onProfileSetup }: SignupFlowPr
   const [email, setEmail] = useState('');
 
   const handleFormComplete = (id: string, userEmail: string) => {
+    console.log('Formulaire complété:', { id, userEmail });
     setSignupId(id);
     setEmail(userEmail);
     setCurrentStep('verification');
   };
 
   const handleEmailVerified = () => {
+    console.log('Email vérifié pour:', email);
     setCurrentStep('payment');
   };
 
   const handlePaymentComplete = () => {
+    console.log('Paiement complété, redirection vers les canaux...');
+    // Rediriger vers les canaux au lieu de dashboard
     onChannelSetup();
   };
 
