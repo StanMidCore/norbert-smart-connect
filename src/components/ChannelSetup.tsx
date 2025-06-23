@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,8 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
   const [connectedChannels, setConnectedChannels] = useState<Channel[]>([]);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
+  const fetchingRef = useRef(false);
   
   const channelIcons = {
     whatsapp: MessageSquare,
@@ -45,13 +47,31 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     { id: 'facebook', name: 'Facebook', description: 'Messages Facebook' },
   ];
 
-  // Initialiser l'utilisateur au chargement
+  // Initialiser l'utilisateur au chargement - une seule fois
   useEffect(() => {
-    if (!user) {
-      console.log('Récupération utilisateur...');
+    if (!user && !hasInitialized) {
+      console.log('🔄 Initialisation utilisateur...');
       getCurrentUser();
+      setHasInitialized(true);
     }
-  }, [user, getCurrentUser]);
+  }, [user, getCurrentUser, hasInitialized]);
+
+  // Récupérer les comptes une seule fois quand l'utilisateur est disponible
+  const fetchAccountsOnce = useCallback(async () => {
+    if (user && !fetchingRef.current && !loading) {
+      console.log('📡 Récupération des comptes pour:', user.email);
+      fetchingRef.current = true;
+      try {
+        await fetchAccounts();
+      } finally {
+        fetchingRef.current = false;
+      }
+    }
+  }, [user, fetchAccounts, loading]);
+
+  useEffect(() => {
+    fetchAccountsOnce();
+  }, [fetchAccountsOnce]);
 
   // Vérifier les paramètres URL pour les redirections OAuth
   useEffect(() => {
@@ -66,7 +86,9 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
       });
       // Nettoyer l'URL et actualiser les comptes
       window.history.replaceState({}, '', window.location.pathname);
-      fetchAccounts();
+      if (!fetchingRef.current) {
+        fetchAccountsOnce();
+      }
     } else if (connection === 'failed' && provider) {
       toast({
         title: "Échec de la connexion",
@@ -76,10 +98,12 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
       // Nettoyer l'URL
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, [toast, fetchAccounts]);
+  }, [toast, fetchAccountsOnce]);
 
+  // Normaliser les canaux connectés
   useEffect(() => {
     if (channels.length > 0) {
+      console.log('📊 Mise à jour des canaux connectés, nombre:', channels.length);
       const normalizedChannels: Channel[] = channels
         .filter(ch => ch.status === 'connected')
         .map((ch, index) => ({
@@ -94,7 +118,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
       
       setConnectedChannels(normalizedChannels);
     }
-  }, [channels, user]);
+  }, [channels, user?.id]);
 
   const handleConnectProvider = async (provider: string) => {
     if (!user) {
@@ -137,7 +161,9 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
           title: "Connexion réussie",
           description: `Votre compte ${provider} a été connecté`,
         });
-        await fetchAccounts();
+        if (!fetchingRef.current) {
+          await fetchAccountsOnce();
+        }
       }
     } catch (error) {
       console.error('Erreur connexion:', error);
@@ -161,14 +187,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      console.log('Utilisateur connecté:', user.email);
-      fetchAccounts();
-    }
-  }, [user, fetchAccounts]);
-
-  if (loading || !user) {
+  if (loading || !user || !hasInitialized) {
     return (
       <div className="min-h-screen bg-app-bg p-4 flex items-center justify-center">
         <div className="text-center">
@@ -200,8 +219,9 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={fetchAccounts}
+                  onClick={fetchAccountsOnce}
                   className="mt-2"
+                  disabled={fetchingRef.current}
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Réessayer
