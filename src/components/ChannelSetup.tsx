@@ -146,24 +146,32 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
         // Pour OAuth, utiliser le gestionnaire de fenêtre
         console.log('🔗 URL d\'autorisation reçue:', result.authorization_url);
         
-        const authWindow = oauthManagerRef.current.openAuthWindow(result.authorization_url, provider);
-        
-        if (authWindow) {
-          const handleComplete = () => {
-            setConnecting(null);
-            setHasLoadedAccounts(false);
-            fetchAccountsOnce();
-          };
-
-          oauthManagerRef.current.startWindowMonitoring(authWindow, provider, handleComplete, toast);
+        // Ajouter un délai pour éviter le blocage immédiat
+        setTimeout(() => {
+          const authWindow = oauthManagerRef.current.openAuthWindow(result.authorization_url, provider);
           
-          toast({
-            title: "Autorisation en cours",
-            description: `Autorisez l'accès à ${provider} dans la nouvelle fenêtre. Elle se fermera automatiquement dans 1 minute.`,
-          });
-        } else {
-          throw new Error('Impossible d\'ouvrir la fenêtre d\'autorisation. Vérifiez que les popups ne sont pas bloquées.');
-        }
+          if (authWindow) {
+            const handleComplete = () => {
+              setConnecting(null);
+              setHasLoadedAccounts(false);
+              fetchAccountsOnce();
+            };
+
+            oauthManagerRef.current.startWindowMonitoring(authWindow, provider, handleComplete, toast);
+            
+            toast({
+              title: "Autorisation en cours",
+              description: `Autorisez l'accès à ${provider} dans la nouvelle fenêtre. Elle se fermera automatiquement dans 1 minute.`,
+            });
+          } else {
+            setConnecting(null);
+            toast({
+              title: "Erreur d'autorisation",
+              description: 'Impossible d\'ouvrir la fenêtre d\'autorisation. Vérifiez que les popups ne sont pas bloquées.',
+              variant: "destructive",
+            });
+          }
+        }, 100);
       } else if (result.requires_manual_setup) {
         setConnecting(null);
         toast({

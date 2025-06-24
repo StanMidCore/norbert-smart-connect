@@ -20,7 +20,8 @@ export class WindowMonitor {
     console.log(`🔍 Début surveillance fenêtre ${provider}`);
     let checkCount = 0;
 
-    this.checkWindowInterval = setInterval(() => {
+    // Utiliser requestAnimationFrame pour éviter le blocage de l'UI
+    const checkWindow = () => {
       checkCount++;
       
       try {
@@ -58,16 +59,27 @@ export class WindowMonitor {
           return;
         }
 
+        // Programmer la prochaine vérification de manière non-bloquante
+        if (!authWindow.closed && checkCount < this.MAX_CHECKS) {
+          this.checkWindowInterval = setTimeout(checkWindow, 1000);
+        }
+
       } catch (error) {
         // Erreur générale, continuer la surveillance
         console.log(`⚠️ Erreur surveillance ${provider}:`, error);
+        if (!authWindow.closed && checkCount < this.MAX_CHECKS) {
+          this.checkWindowInterval = setTimeout(checkWindow, 1000);
+        }
       }
-    }, 1000);
+    };
+
+    // Démarrer la surveillance avec un délai initial
+    this.checkWindowInterval = setTimeout(checkWindow, 1000);
   }
 
   cleanup(): void {
     if (this.checkWindowInterval) {
-      clearInterval(this.checkWindowInterval);
+      clearTimeout(this.checkWindowInterval);
       this.checkWindowInterval = null;
     }
   }
