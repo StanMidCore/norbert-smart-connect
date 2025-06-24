@@ -26,27 +26,39 @@ const QRCodeDialog = ({ qrCode, connecting, onClose, onRegenerate, onError }: QR
   const getQRCodeSrc = () => {
     if (!qrCode) return '';
     
-    console.log('🔍 QR code reçu:', qrCode.substring(0, 100) + '...');
+    console.log('🔍 QR code reçu (longueur):', qrCode.length);
+    console.log('🔍 QR code début:', qrCode.substring(0, 50));
     
     // Si c'est déjà une URL data complète
     if (qrCode.startsWith('data:image/')) {
+      console.log('✅ QR code déjà au format data URL');
       return qrCode;
     }
     
-    // Si c'est un format base64 avec préfixe
-    if (qrCode.includes('data:image')) {
-      return qrCode;
+    // Nettoyer le QR code des caractères indésirables
+    let cleanQrCode = qrCode.trim();
+    
+    // Supprimer les guillemets si présents
+    if (cleanQrCode.startsWith('"') && cleanQrCode.endsWith('"')) {
+      cleanQrCode = cleanQrCode.slice(1, -1);
     }
     
-    // Si c'est juste le contenu base64 brut (format Unipile)
-    // Essayer de détecter le format d'image
-    let mimeType = 'image/png';
-    if (qrCode.startsWith('/9j/') || qrCode.startsWith('iVBOR')) {
-      mimeType = qrCode.startsWith('/9j/') ? 'image/jpeg' : 'image/png';
+    // Vérifier si c'est du base64 valide
+    try {
+      // Test de décodage base64
+      atob(cleanQrCode);
+      console.log('✅ QR code base64 valide');
+      
+      // Retourner comme PNG par défaut
+      return `data:image/png;base64,${cleanQrCode}`;
+    } catch (e) {
+      console.error('❌ QR code base64 invalide:', e);
+      onError('Format QR code invalide. Veuillez régénérer.');
+      return '';
     }
-    
-    return `data:${mimeType};base64,${qrCode}`;
   };
+
+  const qrCodeSrc = getQRCodeSrc();
 
   return (
     <Dialog open={!!qrCode} onOpenChange={onClose}>
@@ -61,15 +73,24 @@ const QRCodeDialog = ({ qrCode, connecting, onClose, onRegenerate, onError }: QR
           </DialogDescription>
         </DialogHeader>
         <div className="text-center space-y-4">
-          <div className="bg-white p-4 rounded-lg border-2 border-gray-200 mx-auto inline-block">
-            <img 
-              src={getQRCodeSrc()} 
-              alt="QR Code WhatsApp" 
-              className="w-64 h-64 mx-auto"
-              onError={handleImageError}
-              onLoad={handleImageLoad}
-            />
-          </div>
+          {qrCodeSrc ? (
+            <div className="bg-white p-4 rounded-lg border-2 border-gray-200 mx-auto inline-block">
+              <img 
+                src={qrCodeSrc} 
+                alt="QR Code WhatsApp" 
+                className="w-64 h-64 mx-auto"
+                onError={handleImageError}
+                onLoad={handleImageLoad}
+              />
+            </div>
+          ) : (
+            <div className="bg-gray-100 p-4 rounded-lg border-2 border-gray-200 mx-auto inline-block w-64 h-64 flex items-center justify-center">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                <p className="text-sm text-gray-600">Génération du QR code...</p>
+              </div>
+            </div>
+          )}
           <div className="space-y-2">
             <p className="text-sm text-gray-600">
               1. Ouvrez WhatsApp Business sur votre téléphone

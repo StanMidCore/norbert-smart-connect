@@ -6,7 +6,8 @@ export interface ToastFunction {
 export class WindowMonitor {
   private checkWindowInterval: NodeJS.Timeout | null = null;
   private messageListener: ((event: MessageEvent) => void) | null = null;
-  private readonly MAX_CHECKS = 30; // Réduit à 30 secondes
+  private closeListener: ((event: Event) => void) | null = null;
+  private readonly MAX_CHECKS = 30; // 30 secondes
 
   startMonitoring(
     authWindow: Window,
@@ -18,13 +19,14 @@ export class WindowMonitor {
       clearInterval(this.checkWindowInterval);
     }
 
-    // Nettoyer l'ancien listener s'il existe
+    // Nettoyer les anciens listeners
     if (this.messageListener) {
       window.removeEventListener('message', this.messageListener);
     }
 
     console.log(`🔍 Début surveillance fenêtre ${provider}`);
     let checkCount = 0;
+    let connectionDetected = false;
 
     // Écouter les messages de la popup OAuth
     this.messageListener = (event: MessageEvent) => {
@@ -35,6 +37,7 @@ export class WindowMonitor {
         
         if (callbackProvider === provider) {
           console.log(`🎯 Callback OAuth reçu pour ${provider}:`, { connection, success });
+          connectionDetected = true;
           
           // Nettoyer la surveillance
           this.cleanup();
@@ -53,12 +56,6 @@ export class WindowMonitor {
               title: "Connexion réussie",
               description: `Votre compte ${provider} a été connecté avec succès`,
             });
-            
-            // Actualiser les comptes immédiatement
-            setTimeout(() => {
-              console.log(`🔄 Actualisation des comptes après callback ${provider}`);
-              onComplete();
-            }, 500);
           } else {
             onToast({
               title: "Échec de la connexion",
@@ -66,6 +63,12 @@ export class WindowMonitor {
               variant: "destructive",
             });
           }
+
+          // Toujours actualiser les comptes après un callback
+          setTimeout(() => {
+            console.log(`🔄 Actualisation des comptes après callback ${provider}`);
+            onComplete();
+          }, 1000);
         }
       }
     };
@@ -80,34 +83,44 @@ export class WindowMonitor {
       try {
         // Vérifier si la fenêtre est fermée manuellement
         if (authWindow.closed) {
-          console.log(`🔒 Fenêtre ${provider} fermée`);
+          console.log(`🔒 Fenêtre ${provider} fermée manuellement`);
           this.cleanup();
           
-          // Actualiser les comptes après fermeture
-          setTimeout(() => {
-            console.log(`🔄 Actualisation des comptes après fermeture ${provider}`);
-            onComplete();
-          }, 1000);
+          // Si pas de connexion détectée, actualiser quand même pour vérifier
+          if (!connectionDetected) {
+            setTimeout(() => {
+              console.log(`🔄 Actualisation des comptes après fermeture manuelle ${provider}`);
+              onComplete();
+            }, 1500);
+          }
           return;
         }
 
         // Fermeture automatique après 30 secondes
         if (checkCount >= this.MAX_CHECKS) {
           console.log(`⏰ Fermeture automatique après 30 secondes pour ${provider}`);
-          authWindow.close();
+          
+          try {
+            authWindow.close();
+          } catch (e) {
+            console.log('Erreur fermeture automatique:', e);
+          }
           
           this.cleanup();
           
-          onToast({
-            title: "Connexion en cours",
-            description: `Vérification de la connexion ${provider} en cours...`,
-          });
+          // Si pas de connexion détectée, montrer un message informatif
+          if (!connectionDetected) {
+            onToast({
+              title: "Vérification en cours",
+              description: `Vérification de la connexion ${provider}...`,
+            });
+          }
           
-          // Actualiser les comptes
+          // Actualiser les comptes dans tous les cas
           setTimeout(() => {
             console.log(`🔄 Actualisation automatique des comptes pour ${provider}`);
             onComplete();
-          }, 1000);
+          }, 1500);
           
           return;
         }
@@ -119,7 +132,7 @@ export class WindowMonitor {
 
       } catch (error) {
         console.log(`⚠️ Erreur surveillance ${provider}:`, error);
-        if (checkCount < this.MAX_CHECKS) {
+        if (checkCount < this.MAX_CHECKS && !connectionDetected) {
           this.checkWindowInterval = setTimeout(checkWindow, 1000);
         }
       }
@@ -138,6 +151,11 @@ export class WindowMonitor {
     if (this.messageListener) {
       window.removeEventListener('message', this.messageListener);
       this.messageListener = null;
+    }
+
+    if (this.closeListener) {
+      window.removeEventListener('beforeunload', this.closeListener);
+      this.closeListener = null;
     }
   }
 }

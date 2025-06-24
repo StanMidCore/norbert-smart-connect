@@ -22,14 +22,34 @@ const OAuthCallback = () => {
       console.log('📤 Envoi du message à la fenêtre parent:', message);
       window.opener.postMessage(message, '*');
       
-      // Fermer la popup immédiatement après envoi du message
-      window.close();
+      // Attendre un peu avant de fermer pour s'assurer que le message est reçu
+      setTimeout(() => {
+        window.close();
+      }, 500);
       
     } else {
       // Fallback si pas de fenêtre parent (redirection directe)
       console.log('🔄 Pas de fenêtre parent, redirection vers l\'accueil');
       window.location.href = `/?connection=${connection}&provider=${provider}`;
     }
+
+    // Ajouter un écouteur pour le bouton "Close" de Google
+    const handleBeforeUnload = () => {
+      if (window.opener) {
+        // Envoyer un message pour indiquer la fermeture manuelle
+        window.opener.postMessage({
+          type: 'oauth-manual-close',
+          provider
+        }, '*');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    // Nettoyer l'écouteur
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, []);
 
   return (
