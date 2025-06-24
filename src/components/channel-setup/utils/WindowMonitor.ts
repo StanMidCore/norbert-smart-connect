@@ -5,6 +5,7 @@ export interface ToastFunction {
 
 export class WindowMonitor {
   private checkWindowInterval: NodeJS.Timeout | null = null;
+  private messageListener: ((event: MessageEvent) => void) | null = null;
   private readonly MAX_CHECKS = 60; // 1 minute max (60 * 1000ms)
 
   startMonitoring(
@@ -17,10 +18,53 @@ export class WindowMonitor {
       clearInterval(this.checkWindowInterval);
     }
 
+    // Nettoyer l'ancien listener s'il existe
+    if (this.messageListener) {
+      window.removeEventListener('message', this.messageListener);
+    }
+
     console.log(`🔍 Début surveillance fenêtre ${provider}`);
     let checkCount = 0;
 
-    // Utiliser requestAnimationFrame pour éviter le blocage de l'UI
+    // Écouter les messages de la popup OAuth
+    this.messageListener = (event: MessageEvent) => {
+      console.log('📨 Message reçu de la popup:', event.data);
+      
+      if (event.data?.type === 'oauth-callback') {
+        const { connection, provider: callbackProvider, success } = event.data;
+        
+        if (callbackProvider === provider) {
+          console.log(`🎯 Callback OAuth reçu pour ${provider}:`, { connection, success });
+          
+          // Nettoyer la surveillance
+          this.cleanup();
+          
+          if (success) {
+            onToast({
+              title: "Connexion réussie",
+              description: `Votre compte ${provider} a été connecté avec succès`,
+            });
+          } else {
+            onToast({
+              title: "Échec de la connexion",
+              description: `Impossible de connecter votre compte ${provider}`,
+              variant: "destructive",
+            });
+          }
+          
+          // Actualiser les comptes après un court délai
+          setTimeout(() => {
+            console.log(`🔄 Actualisation des comptes après callback ${provider}`);
+            onComplete();
+          }, 1000);
+        }
+      }
+    };
+
+    // Ajouter l'écouteur de messages
+    window.addEventListener('message', this.messageListener);
+
+    // Surveillance traditionnelle de la fenêtre pour les cas où les messages ne marchent pas
     const checkWindow = () => {
       checkCount++;
       
@@ -30,9 +74,9 @@ export class WindowMonitor {
           console.log(`🔒 Fenêtre ${provider} fermée manuellement`);
           this.cleanup();
           
-          // Actualiser les comptes après fermeture
+          // Actualiser les comptes après fermeture manuelle
           setTimeout(() => {
-            console.log(`🔄 Actualisation des comptes après fermeture fenêtre ${provider}`);
+            console.log(`🔄 Actualisation des comptes après fermeture manuelle ${provider}`);
             onComplete();
           }, 1000);
           return;
@@ -81,6 +125,11 @@ export class WindowMonitor {
     if (this.checkWindowInterval) {
       clearTimeout(this.checkWindowInterval);
       this.checkWindowInterval = null;
+    }
+    
+    if (this.messageListener) {
+      window.removeEventListener('message', this.messageListener);
+      this.messageListener = null;
     }
   }
 }

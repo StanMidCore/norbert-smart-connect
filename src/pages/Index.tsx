@@ -1,12 +1,12 @@
-
 import { useState, useEffect } from 'react';
 import SignupFlow from '@/components/SignupFlow';
 import ChannelSetup from '@/components/ChannelSetup';
 import ProfileSetup from '@/components/ProfileSetup';
 import Dashboard from '@/components/Dashboard';
 import ClientDetail from '@/components/ClientDetail';
+import OAuthCallback from '@/pages/OAuthCallback';
 
-type AppScreen = 'signup' | 'channels' | 'profile' | 'dashboard' | 'calendar' | 'clients' | 'settings' | 'client-detail';
+type AppScreen = 'signup' | 'channels' | 'profile' | 'dashboard' | 'calendar' | 'clients' | 'settings' | 'client-detail' | 'oauth-callback';
 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('signup');
@@ -20,6 +20,15 @@ const Index = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentSuccess = urlParams.get('payment_success');
     const paymentError = urlParams.get('payment_error');
+    const connection = urlParams.get('connection');
+    
+    // Vérifier si c'est un callback OAuth
+    if (connection && window.location.pathname === '/oauth-callback') {
+      console.log('🔗 Callback OAuth détecté, affichage de la page callback');
+      setCurrentScreen('oauth-callback');
+      setHasCheckedUrlParams(true);
+      return;
+    }
     
     if (paymentSuccess === 'true') {
       console.log('🎉 Paiement réussi détecté dans l\'URL, redirection vers canaux');
@@ -64,6 +73,11 @@ const Index = () => {
     console.log('🔗 Redirection vers la configuration des canaux');
     setCurrentScreen('channels');
   };
+
+  // Écran callback OAuth
+  if (currentScreen === 'oauth-callback') {
+    return <OAuthCallback />;
+  }
 
   // Écran d'inscription
   if (currentScreen === 'signup') {

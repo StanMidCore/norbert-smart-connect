@@ -105,13 +105,7 @@ export const useUnipile = () => {
         throw new Error(data.error || 'Erreur connexion compte');
       }
 
-      // For OAuth providers, redirect in the same window
-      if (data.authorization_url) {
-        console.log('Redirection vers:', data.authorization_url);
-        window.location.href = data.authorization_url;
-        return data;
-      }
-
+      // Ne pas faire de redirection automatique, retourner les données pour que le composant gère l'ouverture de popup
       return data;
     } catch (err) {
       console.error('Erreur connectAccount:', err);

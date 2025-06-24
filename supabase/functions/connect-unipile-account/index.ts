@@ -162,6 +162,7 @@ serve(async (req) => {
     if (['gmail', 'outlook', 'facebook'].includes(provider.toLowerCase())) {
       console.log('Utilisation de l\'API d\'autorisation hébergée pour:', provider);
       
+      // Utiliser l'origin de la requête ou l'URL par défaut pour les redirections
       const origin = req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co';
       
       // Calculer la date d'expiration (24h à partir de maintenant)
@@ -180,8 +181,9 @@ serve(async (req) => {
           providers: [unipileProvider],
           expiresOn: expiresOn.toISOString(),
           api_url: "https://api2.unipile.com:13279",
-          success_redirect_url: `${origin}/?connection=success&provider=${provider}`,
-          failure_redirect_url: `${origin}/?connection=failed&provider=${provider}`
+          // Utiliser un callback spécial pour les popups au lieu de redirections dans la même fenêtre
+          success_redirect_url: `${origin}/oauth-callback?connection=success&provider=${provider}`,
+          failure_redirect_url: `${origin}/oauth-callback?connection=failed&provider=${provider}`
         })
       });
 
@@ -210,10 +212,11 @@ serve(async (req) => {
         });
       }
 
+      // Retourner l'URL d'autorisation pour ouverture en popup (pas de redirection)
       return new Response(JSON.stringify({ 
         success: true, 
         authorization_url: authUrl,
-        message: 'Redirection vers l\'autorisation en cours...'
+        message: 'URL d\'autorisation générée pour popup'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
