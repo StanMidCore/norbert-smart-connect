@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -38,51 +37,52 @@ export const useUnipile = () => {
     setError(null);
     
     try {
-      // Get channels directly from database instead of edge function
-      const { data: channelsData, error: channelsError } = await supabase
-        .from('channels')
-        .select('*')
-        .eq('status', 'connected');
+      // Utiliser l'edge function pour récupérer les comptes réels depuis Unipile
+      const { data, error: functionError } = await supabase.functions.invoke('unipile-accounts');
 
-      if (channelsError) {
-        console.error('Erreur récupération canaux:', channelsError);
+      if (functionError) {
+        console.error('Erreur edge function:', functionError);
         setChannels([]);
         setAccounts([]);
         return;
       }
 
-      console.log('Canaux trouvés:', channelsData?.length || 0);
+      if (!data.success) {
+        console.error('Erreur dans la réponse:', data.error);
+        setError(data.error);
+        setChannels([]);
+        setAccounts([]);
+        return;
+      }
 
-      // Format channels with proper typing
-      const formattedChannels: UnipileChannel[] = (channelsData || []).map(channel => {
-        // Handle provider_info which can be null or various Json types
-        let providerInfo;
-        if (channel.provider_info && typeof channel.provider_info === 'object' && !Array.isArray(channel.provider_info)) {
-          const info = channel.provider_info as Record<string, any>;
-          providerInfo = {
-            provider: info.provider || channel.channel_type.toUpperCase(),
-            identifier: info.identifier || channel.unipile_account_id,
-            name: info.name || `Compte ${channel.channel_type.charAt(0).toUpperCase() + channel.channel_type.slice(1)}`
-          };
-        } else {
-          providerInfo = {
-            provider: channel.channel_type.toUpperCase(),
-            identifier: channel.unipile_account_id,
-            name: `Compte ${channel.channel_type.charAt(0).toUpperCase() + channel.channel_type.slice(1)}`
-          };
+      console.log('Comptes Unipile récupérés:', data.accounts?.length || 0);
+      console.log('Canaux locaux:', data.norbert_channels?.length || 0);
+
+      // Utiliser les comptes réels d'Unipile s'ils existent, sinon les canaux locaux
+      const realAccounts = data.accounts || [];
+      const localChannels = data.norbert_channels || [];
+      
+      // Convertir les comptes Unipile en format channel pour l'affichage
+      const formattedChannels: UnipileChannel[] = realAccounts.map((account: any) => ({
+        id: account.id,
+        unipile_account_id: account.id,
+        channel_type: account.provider.toLowerCase(),
+        status: account.is_active ? 'connected' : 'disconnected',
+        provider_info: {
+          provider: account.provider,
+          identifier: account.identifier || account.name || account.id,
+          name: account.name || `Compte ${account.provider}`
         }
+      }));
 
-        return {
-          id: channel.id,
-          unipile_account_id: channel.unipile_account_id,
-          channel_type: channel.channel_type,
-          status: channel.status,
-          provider_info: providerInfo
-        };
-      });
-
-      setChannels(formattedChannels);
-      setAccounts([]);
+      // Si pas de comptes Unipile, utiliser les canaux locaux
+      if (formattedChannels.length === 0) {
+        setChannels(localChannels);
+      } else {
+        setChannels(formattedChannels);
+      }
+      
+      setAccounts(realAccounts);
     } catch (err) {
       console.error('Erreur fetchAccounts:', err);
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -95,6 +95,11 @@ export const useUnipile = () => {
 
   const connectAccount = async (provider: string) => {
     try {
+      // Pour Instagram, afficher un message d'information
+      if (provider.toLowerCase() === 'instagram') {
+        throw new Error('Instagram nécessite une configuration manuelle. Veuillez vous connecter directement sur votre dashboard Unipile.');
+      }
+
       const { data, error } = await supabase.functions.invoke('connect-unipile-account', {
         body: { provider }
       });
@@ -105,7 +110,6 @@ export const useUnipile = () => {
         throw new Error(data.error || 'Erreur connexion compte');
       }
 
-      // Ne pas faire de redirection automatique, retourner les données pour que le composant gère l'ouverture de popup
       return data;
     } catch (err) {
       console.error('Erreur connectAccount:', err);

@@ -2,14 +2,9 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, Mail, Phone, Instagram, Facebook, Plus, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { MessageSquare, Mail, Phone, Instagram, Facebook, Loader2 } from 'lucide-react';
 import type { UnipileChannel } from '@/hooks/useUnipile';
-
-interface AvailableProvider {
-  id: string;
-  name: string;
-  description: string;
-}
 
 interface AvailableProvidersListProps {
   channels: UnipileChannel[];
@@ -18,76 +13,105 @@ interface AvailableProvidersListProps {
 }
 
 const AvailableProvidersList = ({ channels, connecting, onConnect }: AvailableProvidersListProps) => {
-  const channelIcons = {
-    whatsapp: MessageSquare,
-    email: Mail,
-    sms: Phone,
-    instagram: Instagram,
-    facebook: Facebook,
-  };
-
-  const channelColors = {
-    whatsapp: 'text-green-600',
-    email: 'text-blue-600',
-    sms: 'text-purple-600',
-    instagram: 'text-pink-600',
-    facebook: 'text-blue-700',
-  };
-
-  const availableProviders: AvailableProvider[] = [
-    { id: 'whatsapp', name: 'WhatsApp', description: 'Messages WhatsApp Business' },
-    { id: 'gmail', name: 'Gmail', description: 'Emails Gmail' },
-    { id: 'outlook', name: 'Outlook', description: 'Emails Outlook' },
-    { id: 'instagram', name: 'Instagram', description: 'Messages Instagram' },
-    { id: 'facebook', name: 'Facebook', description: 'Messages Facebook' },
+  const availableProviders = [
+    {
+      id: 'gmail',
+      name: 'Gmail',
+      icon: Mail,
+      color: 'text-red-600',
+      description: 'Connectez votre compte Gmail',
+    },
+    {
+      id: 'outlook',
+      name: 'Outlook',
+      icon: Mail,
+      color: 'text-blue-600',
+      description: 'Connectez votre compte Outlook',
+    },
+    {
+      id: 'whatsapp',
+      name: 'WhatsApp Business',
+      icon: MessageSquare,
+      color: 'text-green-600',
+      description: 'Connectez votre WhatsApp Business',
+    },
+    {
+      id: 'facebook',
+      name: 'Facebook Messenger',
+      icon: Facebook,
+      color: 'text-blue-700',
+      description: 'Connectez votre page Facebook',
+    },
+    {
+      id: 'instagram',
+      name: 'Instagram',
+      icon: Instagram,
+      color: 'text-pink-600',
+      description: 'Configuration manuelle requise',
+      disabled: true,
+    },
   ];
 
-  const filteredProviders = availableProviders.filter(provider => 
-    !channels.some(ch => 
-      ch.provider_info?.provider?.toLowerCase() === provider.id || 
-      ch.channel_type === provider.id
-    )
-  );
+  const connectedProviderIds = channels.map(ch => ch.channel_type.toLowerCase());
 
   return (
     <div className="space-y-4 mb-6">
-      <h2 className="text-lg font-semibold text-main">
-        {channels.length > 0 ? 'Ajouter d\'autres canaux' : 'Connecter vos premiers canaux'}
-      </h2>
+      <h2 className="text-lg font-semibold text-main">Canaux disponibles</h2>
       
-      {filteredProviders.map((provider) => {
-        const Icon = channelIcons[provider.id as keyof typeof channelIcons] || MessageSquare;
-        const color = channelColors[provider.id as keyof typeof channelColors] || 'text-gray-600';
+      {availableProviders.map((provider) => {
+        const isConnected = connectedProviderIds.includes(provider.id);
         const isConnecting = connecting === provider.id;
+        const Icon = provider.icon;
         
         return (
           <Card key={provider.id} className="cursor-pointer hover:shadow-md transition-shadow">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <Icon className={`h-8 w-8 ${color}`} />
+                  <Icon className={`h-8 w-8 ${provider.color}`} />
                   <div>
                     <h3 className="font-medium text-main">{provider.name}</h3>
                     <p className="text-sm text-main opacity-70">{provider.description}</p>
                   </div>
                 </div>
                 
-                <Button
-                  onClick={() => onConnect(provider.id)}
-                  disabled={isConnecting}
-                  size="sm"
-                  className="bg-cta hover:bg-cta/90"
-                >
-                  {isConnecting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                <div className="flex items-center space-x-2">
+                  {isConnected ? (
+                    <Badge className="bg-status-success text-white">
+                      Connecté
+                    </Badge>
+                  ) : provider.disabled ? (
+                    <Badge variant="secondary" className="bg-gray-200 text-gray-600">
+                      Manuel
+                    </Badge>
                   ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-1" />
-                      Connecter
-                    </>
+                    <Button
+                      onClick={() => onConnect(provider.id)}
+                      disabled={isConnecting}
+                      variant="outline"
+                      size="sm"
+                      className="min-w-20"
+                    >
+                      {isConnecting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          Connexion...
+                        </>
+                      ) : (
+                        'Connecter'
+                      )}
+                    </Button>
                   )}
-                </Button>
+                </div>
               </div>
+              
+              {provider.id === 'instagram' && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    Instagram nécessite une configuration manuelle via votre dashboard Unipile.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         );

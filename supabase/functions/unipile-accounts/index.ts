@@ -19,7 +19,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get demo user (for now, we'll use the demo user)
+    // Get demo user
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('*')
@@ -37,46 +37,147 @@ serve(async (req) => {
       });
     }
 
-    // Get connected channels from our database
-    const { data: channels, error: channelsError } = await supabase
-      .from('channels')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'connected');
+    // Récupération de la clé API depuis les secrets Supabase
+    const unipileApiKey = Deno.env.get('UNIPILE_API_KEY');
+    if (!unipileApiKey) {
+      console.error('Clé API Unipile manquante dans les secrets');
+      
+      // Fallback: récupérer les canaux depuis notre base de données
+      const { data: channels, error: channelsError } = await supabase
+        .from('channels')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'connected');
 
-    if (channelsError) {
-      console.error('Erreur récupération canaux:', channelsError);
+      const formattedChannels = (channels || []).map(channel => ({
+        id: channel.unipile_account_id,
+        unipile_account_id: channel.unipile_account_id,
+        channel_type: channel.channel_type,
+        status: channel.status,
+        provider_info: channel.provider_info || {
+          provider: channel.channel_type,
+          identifier: `${channel.channel_type}_account`,
+          name: `Compte ${channel.channel_type.charAt(0).toUpperCase() + channel.channel_type.slice(1)}`
+        }
+      }));
+
       return new Response(JSON.stringify({ 
-        error: 'Erreur récupération canaux',
-        success: false 
+        success: true,
+        accounts: [],
+        norbert_channels: formattedChannels,
+        note: 'Utilisation des canaux locaux (clé API Unipile manquante)'
       }), {
-        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('Canaux connectés trouvés:', channels?.length || 0);
+    try {
+      // Récupérer les comptes réels depuis l'API Unipile
+      console.log('Récupération des comptes Unipile...');
+      const response = await fetch('https://api2.unipile.com:13279/api/v1/accounts', {
+        method: 'GET',
+        headers: {
+          'X-API-KEY': unipileApiKey,
+          'accept': 'application/json'
+        }
+      });
 
-    // Format channels for the frontend
-    const formattedChannels = (channels || []).map(channel => ({
-      id: channel.unipile_account_id,
-      unipile_account_id: channel.unipile_account_id,
-      channel_type: channel.channel_type,
-      status: channel.status,
-      provider_info: channel.provider_info || {
-        provider: channel.channel_type,
-        identifier: `${channel.channel_type}_account`,
-        name: `Compte ${channel.channel_type.charAt(0).toUpperCase() + channel.channel_type.slice(1)}`
+      if (!response.ok) {
+        console.error('Erreur API Unipile:', response.status, response.statusText);
+        
+        // Fallback: récupérer les canaux depuis notre base de données
+        const { data: channels, error: channelsError } = await supabase
+          .from('channels')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'connected');
+
+        const formattedChannels = (channels || []).map(channel => ({
+          id: channel.unipile_account_id,
+          unipile_account_id: channel.unipile_account_id,
+          channel_type: channel.channel_type,
+          status: channel.status,
+          provider_info: channel.provider_info || {
+            provider: channel.channel_type,
+            identifier: `${channel.channel_type}_account`,
+            name: `Compte ${channel.channel_type.charAt(0).toUpperCase() + channel.channel_type.slice(1)}`
+          }
+        }));
+
+        return new Response(JSON.stringify({ 
+          success: true,
+          accounts: [],
+          norbert_channels: formattedChannels,
+          note: 'Utilisation des canaux locaux (erreur API Unipile)'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
-    }));
 
-    return new Response(JSON.stringify({ 
-      success: true,
-      accounts: [], // Pour compatibilité
-      norbert_channels: formattedChannels
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+      const unipileAccounts = await response.json();
+      console.log('Comptes Unipile récupérés:', unipileAccounts?.length || 0);
+
+      // Synchroniser avec notre base de données
+      if (unipileAccounts && unipileAccounts.length > 0) {
+        for (const account of unipileAccounts) {
+          if (account.is_active) {
+            await supabase
+              .from('channels')
+              .upsert({
+                user_id: user.id,
+                channel_type: account.provider.toLowerCase(),
+                unipile_account_id: account.id,
+                status: 'connected',
+                connected_at: new Date().toISOString(),
+                provider_info: {
+                  provider: account.provider,
+                  identifier: account.identifier || account.name || account.id,
+                  name: account.name || `Compte ${account.provider}`
+                }
+              });
+          }
+        }
+      }
+
+      return new Response(JSON.stringify({ 
+        success: true,
+        accounts: unipileAccounts || [],
+        norbert_channels: []
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+
+    } catch (apiError) {
+      console.error('Erreur lors de l\'appel à l\'API Unipile:', apiError);
+      
+      // Fallback: récupérer les canaux depuis notre base de données
+      const { data: channels } = await supabase
+        .from('channels')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'connected');
+
+      const formattedChannels = (channels || []).map(channel => ({
+        id: channel.unipile_account_id,
+        unipile_account_id: channel.unipile_account_id,
+        channel_type: channel.channel_type,
+        status: channel.status,
+        provider_info: channel.provider_info || {
+          provider: channel.channel_type,
+          identifier: `${channel.channel_type}_account`,
+          name: `Compte ${channel.channel_type.charAt(0).toUpperCase() + channel.channel_type.slice(1)}`
+        }
+      }));
+
+      return new Response(JSON.stringify({ 
+        success: true,
+        accounts: [],
+        norbert_channels: formattedChannels,
+        note: 'Utilisation des canaux locaux (erreur réseau Unipile)'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
   } catch (error) {
     console.error('Erreur récupération comptes:', error);
