@@ -7,7 +7,7 @@ export class WindowMonitor {
   private checkWindowInterval: NodeJS.Timeout | null = null;
   private messageListener: ((event: MessageEvent) => void) | null = null;
   private closeListener: ((event: Event) => void) | null = null;
-  private readonly MAX_CHECKS = 60; // Augmenté à 60 secondes
+  private readonly MAX_CHECKS = 60;
 
   startMonitoring(
     authWindow: Window,
@@ -26,7 +26,7 @@ export class WindowMonitor {
 
     console.log(`🔍 Début surveillance fenêtre ${provider}`);
     let checkCount = 0;
-    let connectionDetected = false;
+    let hasProcessedCallback = false;
 
     // Écouter les messages de la popup OAuth
     this.messageListener = (event: MessageEvent) => {
@@ -35,9 +35,9 @@ export class WindowMonitor {
       if (event.data?.type === 'oauth-callback') {
         const { connection, provider: callbackProvider, success } = event.data;
         
-        if (callbackProvider === provider) {
+        if (callbackProvider === provider && !hasProcessedCallback) {
           console.log(`🎯 Callback OAuth reçu pour ${provider}:`, { connection, success });
-          connectionDetected = true;
+          hasProcessedCallback = true;
           
           // Nettoyer la surveillance
           this.cleanup();
@@ -56,6 +56,12 @@ export class WindowMonitor {
               title: "Connexion réussie",
               description: `Votre compte ${provider} a été connecté avec succès`,
             });
+            
+            // SYNCHRONISATION FORCÉE après succès
+            setTimeout(() => {
+              console.log(`🔄 SYNCHRONISATION FORCÉE après succès ${provider}`);
+              onComplete();
+            }, 1000);
           } else {
             onToast({
               title: "Échec de la connexion",
@@ -63,23 +69,17 @@ export class WindowMonitor {
               variant: "destructive",
             });
           }
-
-          // TOUJOURS actualiser après un callback
-          setTimeout(() => {
-            console.log(`🔄 Actualisation forcée après callback ${provider}`);
-            onComplete();
-          }, 2000);
         }
-      } else if (event.data?.type === 'oauth-manual-close') {
+      } else if (event.data?.type === 'oauth-manual-close' && !hasProcessedCallback) {
         console.log(`🔒 Fermeture manuelle détectée pour ${provider}`);
-        connectionDetected = true;
+        hasProcessedCallback = true;
         this.cleanup();
         
-        // Actualiser même après fermeture manuelle
+        // Synchroniser même après fermeture manuelle (au cas où la connexion a réussi)
         setTimeout(() => {
-          console.log(`🔄 Actualisation après fermeture manuelle ${provider}`);
+          console.log(`🔄 Synchronisation après fermeture manuelle ${provider}`);
           onComplete();
-        }, 2000);
+        }, 1500);
       }
     };
 
@@ -92,31 +92,43 @@ export class WindowMonitor {
       
       try {
         // Vérifier si la fenêtre est fermée
-        if (authWindow.closed) {
+        if (authWindow.closed && !hasProcessedCallback) {
           console.log(`🔒 Fenêtre ${provider} fermée (check #${checkCount})`);
+          hasProcessedCallback = true;
           this.cleanup();
           
           // TOUJOURS synchroniser quand la fenêtre se ferme
-          console.log(`🔄 Synchronisation forcée après fermeture ${provider}`);
+          console.log(`🔄 SYNCHRONISATION FORCÉE après fermeture ${provider}`);
           setTimeout(() => {
             onComplete();
-          }, 1500);
+          }, 500);
           return;
         }
 
         // Vérifier l'URL de la fenêtre pour détecter les redirections
         try {
           const windowUrl = authWindow.location.href;
-          if (windowUrl && windowUrl.includes('oauth-callback')) {
+          if (windowUrl && windowUrl.includes('oauth-callback') && !hasProcessedCallback) {
             console.log(`🔗 Détection redirect OAuth dans l'URL: ${windowUrl}`);
-            connectionDetected = true;
+            hasProcessedCallback = true;
             this.cleanup();
+            
+            // Extraire les paramètres pour déterminer le succès
+            const urlParams = new URLSearchParams(new URL(windowUrl).search);
+            const connection = urlParams.get('connection');
+            
+            if (connection === 'success') {
+              onToast({
+                title: "Connexion réussie",
+                description: `Votre compte ${provider} a été connecté avec succès`,
+              });
+            }
             
             // Forcer la synchronisation
             setTimeout(() => {
-              console.log(`🔄 Synchronisation après détection URL ${provider}`);
+              console.log(`🔄 SYNCHRONISATION FORCÉE après détection URL ${provider}`);
               onComplete();
-            }, 1500);
+            }, 1000);
             return;
           }
         } catch (urlError) {
@@ -127,31 +139,34 @@ export class WindowMonitor {
         if (checkCount >= this.MAX_CHECKS) {
           console.log(`⏰ Fermeture automatique après ${this.MAX_CHECKS} secondes pour ${provider}`);
           
-          try {
-            authWindow.close();
-          } catch (e) {
-            console.log('Erreur fermeture automatique:', e);
+          if (!hasProcessedCallback) {
+            hasProcessedCallback = true;
+            
+            try {
+              authWindow.close();
+            } catch (e) {
+              console.log('Erreur fermeture automatique:', e);
+            }
+            
+            this.cleanup();
+            
+            // Synchroniser après timeout (au cas où)
+            setTimeout(() => {
+              console.log(`🔄 Synchronisation après timeout ${provider}`);
+              onComplete();
+            }, 1000);
           }
-          
-          this.cleanup();
-          
-          // Synchroniser après timeout
-          setTimeout(() => {
-            console.log(`🔄 Synchronisation après timeout ${provider}`);
-            onComplete();
-          }, 1500);
-          
           return;
         }
 
         // Programmer la prochaine vérification
-        if (checkCount < this.MAX_CHECKS) {
+        if (checkCount < this.MAX_CHECKS && !hasProcessedCallback) {
           this.checkWindowInterval = setTimeout(checkWindow, 1000);
         }
 
       } catch (error) {
         console.log(`⚠️ Erreur surveillance ${provider}:`, error);
-        if (checkCount < this.MAX_CHECKS && !connectionDetected) {
+        if (checkCount < this.MAX_CHECKS && !hasProcessedCallback) {
           this.checkWindowInterval = setTimeout(checkWindow, 1000);
         }
       }
