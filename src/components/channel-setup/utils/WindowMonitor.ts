@@ -6,8 +6,7 @@ export interface ToastFunction {
 export class WindowMonitor {
   private checkWindowInterval: NodeJS.Timeout | null = null;
   private messageListener: ((event: MessageEvent) => void) | null = null;
-  private closeListener: ((event: Event) => void) | null = null;
-  private readonly MAX_CHECKS = 60;
+  private readonly MAX_CHECKS = 30; // Réduire à 30 secondes
 
   startMonitoring(
     authWindow: Window,
@@ -19,7 +18,6 @@ export class WindowMonitor {
       clearInterval(this.checkWindowInterval);
     }
 
-    // Nettoyer les anciens listeners
     if (this.messageListener) {
       window.removeEventListener('message', this.messageListener);
     }
@@ -39,10 +37,8 @@ export class WindowMonitor {
           console.log(`🎯 Callback OAuth reçu pour ${provider}:`, { connection, success });
           hasProcessedCallback = true;
           
-          // Nettoyer la surveillance
           this.cleanup();
           
-          // Fermer la fenêtre si elle n'est pas déjà fermée
           if (authWindow && !authWindow.closed) {
             try {
               authWindow.close();
@@ -51,93 +47,47 @@ export class WindowMonitor {
             }
           }
           
-          if (success) {
-            onToast({
-              title: "Connexion réussie",
-              description: `Votre compte ${provider} a été connecté avec succès`,
-            });
-            
-            // SYNCHRONISATION FORCÉE après succès
-            setTimeout(() => {
-              console.log(`🔄 SYNCHRONISATION FORCÉE après succès ${provider}`);
-              onComplete();
-            }, 1000);
-          } else {
-            onToast({
-              title: "Échec de la connexion",
-              description: `Impossible de connecter votre compte ${provider}`,
-              variant: "destructive",
-            });
-          }
+          // Toujours appeler onComplete pour déclencher le polling
+          setTimeout(() => {
+            console.log(`🔄 Déclenchement polling après callback ${provider}`);
+            onComplete();
+          }, 500);
         }
       } else if (event.data?.type === 'oauth-manual-close' && !hasProcessedCallback) {
         console.log(`🔒 Fermeture manuelle détectée pour ${provider}`);
         hasProcessedCallback = true;
         this.cleanup();
         
-        // Synchroniser même après fermeture manuelle (au cas où la connexion a réussi)
         setTimeout(() => {
-          console.log(`🔄 Synchronisation après fermeture manuelle ${provider}`);
+          console.log(`🔄 Déclenchement polling après fermeture manuelle ${provider}`);
           onComplete();
-        }, 1500);
+        }, 500);
       }
     };
 
-    // Ajouter l'écouteur de messages
     window.addEventListener('message', this.messageListener);
 
-    // Surveillance traditionnelle de la fenêtre
+    // Surveillance de la fenêtre
     const checkWindow = () => {
       checkCount++;
       
       try {
-        // Vérifier si la fenêtre est fermée
         if (authWindow.closed && !hasProcessedCallback) {
           console.log(`🔒 Fenêtre ${provider} fermée (check #${checkCount})`);
           hasProcessedCallback = true;
           this.cleanup();
           
-          // TOUJOURS synchroniser quand la fenêtre se ferme
-          console.log(`🔄 SYNCHRONISATION FORCÉE après fermeture ${provider}`);
+          // Toujours déclencher le polling quand la fenêtre se ferme
           setTimeout(() => {
+            console.log(`🔄 Déclenchement polling après fermeture ${provider}`);
             onComplete();
           }, 500);
           return;
         }
 
-        // Vérifier l'URL de la fenêtre pour détecter les redirections
-        try {
-          const windowUrl = authWindow.location.href;
-          if (windowUrl && windowUrl.includes('oauth-callback') && !hasProcessedCallback) {
-            console.log(`🔗 Détection redirect OAuth dans l'URL: ${windowUrl}`);
-            hasProcessedCallback = true;
-            this.cleanup();
-            
-            // Extraire les paramètres pour déterminer le succès
-            const urlParams = new URLSearchParams(new URL(windowUrl).search);
-            const connection = urlParams.get('connection');
-            
-            if (connection === 'success') {
-              onToast({
-                title: "Connexion réussie",
-                description: `Votre compte ${provider} a été connecté avec succès`,
-              });
-            }
-            
-            // Forcer la synchronisation
-            setTimeout(() => {
-              console.log(`🔄 SYNCHRONISATION FORCÉE après détection URL ${provider}`);
-              onComplete();
-            }, 1000);
-            return;
-          }
-        } catch (urlError) {
-          // Normal si cross-origin, continuer la surveillance
-        }
-
-        // Fermeture automatique après timeout
+        // Timeout après MAX_CHECKS
         if (checkCount >= this.MAX_CHECKS) {
-          console.log(`⏰ Fermeture automatique après ${this.MAX_CHECKS} secondes pour ${provider}`);
+          console.log(`⏰ Timeout surveillance ${provider}`);
           
           if (!hasProcessedCallback) {
             hasProcessedCallback = true;
@@ -150,16 +100,14 @@ export class WindowMonitor {
             
             this.cleanup();
             
-            // Synchroniser après timeout (au cas où)
             setTimeout(() => {
-              console.log(`🔄 Synchronisation après timeout ${provider}`);
+              console.log(`🔄 Déclenchement polling après timeout ${provider}`);
               onComplete();
-            }, 1000);
+            }, 500);
           }
           return;
         }
 
-        // Programmer la prochaine vérification
         if (checkCount < this.MAX_CHECKS && !hasProcessedCallback) {
           this.checkWindowInterval = setTimeout(checkWindow, 1000);
         }
@@ -172,7 +120,6 @@ export class WindowMonitor {
       }
     };
 
-    // Démarrer la surveillance immédiatement
     this.checkWindowInterval = setTimeout(checkWindow, 1000);
   }
 
@@ -185,11 +132,6 @@ export class WindowMonitor {
     if (this.messageListener) {
       window.removeEventListener('message', this.messageListener);
       this.messageListener = null;
-    }
-
-    if (this.closeListener) {
-      window.removeEventListener('beforeunload', this.closeListener);
-      this.closeListener = null;
     }
   }
 }
