@@ -96,7 +96,7 @@ export const useChannelSetup = () => {
       
       if (result.qr_code) {
         // Pour WhatsApp, afficher le QR code
-        console.log('📱 QR Code WhatsApp reçu');
+        console.log('📱 QR Code WhatsApp reçu, longueur:', result.qr_code.length);
         setQrCode(result.qr_code);
         setConnecting(null);
         toast({
@@ -105,7 +105,7 @@ export const useChannelSetup = () => {
         });
       } else if (result.authorization_url) {
         // Pour OAuth, utiliser le gestionnaire de fenêtre
-        console.log('🔗 URL d\'autorisation reçue:', result.authorization_url);
+        console.log('🔗 URL d\'autorisation reçue pour', provider);
         
         // Ajouter un délai pour éviter le blocage immédiat
         setTimeout(() => {
@@ -113,12 +113,15 @@ export const useChannelSetup = () => {
           
           if (authWindow) {
             const handleComplete = () => {
+              console.log(`🔄 Début actualisation après OAuth ${provider}`);
               setConnecting(null);
               setHasLoadedAccounts(false);
-              // Rafraîchir avec un délai plus long
+              
+              // Forcer l'actualisation avec un délai plus long
               setTimeout(() => {
+                console.log(`🔄 Exécution actualisation ${provider}`);
                 fetchAccountsOnce();
-              }, 2000);
+              }, 3000);
             };
 
             oauthManagerRef.current.startWindowMonitoring(authWindow, provider, handleComplete, toast);
@@ -135,7 +138,7 @@ export const useChannelSetup = () => {
               variant: "destructive",
             });
           }
-        }, 100);
+        }, 200);
       } else if (result.requires_manual_setup) {
         setConnecting(null);
         toast({
@@ -153,7 +156,7 @@ export const useChannelSetup = () => {
           setHasLoadedAccounts(false);
           setTimeout(() => {
             fetchAccountsOnce();
-          }, 1000);
+          }, 2000);
         }
       }
     } catch (error) {

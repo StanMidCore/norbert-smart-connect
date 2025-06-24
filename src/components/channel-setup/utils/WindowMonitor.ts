@@ -7,7 +7,7 @@ export class WindowMonitor {
   private checkWindowInterval: NodeJS.Timeout | null = null;
   private messageListener: ((event: MessageEvent) => void) | null = null;
   private closeListener: ((event: Event) => void) | null = null;
-  private readonly MAX_CHECKS = 30; // 30 secondes
+  private readonly MAX_CHECKS = 60; // Augmenté à 60 secondes
 
   startMonitoring(
     authWindow: Window,
@@ -64,52 +64,68 @@ export class WindowMonitor {
             });
           }
 
-          // Toujours actualiser les comptes après un callback
+          // TOUJOURS actualiser après un callback
           setTimeout(() => {
-            console.log(`🔄 Actualisation des comptes après callback ${provider}`);
+            console.log(`🔄 Actualisation forcée après callback ${provider}`);
             onComplete();
-          }, 1000);
+          }, 2000);
         }
       } else if (event.data?.type === 'oauth-manual-close') {
-        // Gestion explicite de la fermeture manuelle
         console.log(`🔒 Fermeture manuelle détectée pour ${provider}`);
         connectionDetected = true;
         this.cleanup();
         
-        // Actualiser après fermeture manuelle
+        // Actualiser même après fermeture manuelle
         setTimeout(() => {
           console.log(`🔄 Actualisation après fermeture manuelle ${provider}`);
           onComplete();
-        }, 1500);
+        }, 2000);
       }
     };
 
     // Ajouter l'écouteur de messages
     window.addEventListener('message', this.messageListener);
 
-    // Surveillance traditionnelle de la fenêtre avec vérification plus fréquente
+    // Surveillance traditionnelle de la fenêtre
     const checkWindow = () => {
       checkCount++;
       
       try {
-        // Vérifier si la fenêtre est fermée manuellement
+        // Vérifier si la fenêtre est fermée
         if (authWindow.closed) {
-          console.log(`🔒 Fenêtre ${provider} fermée`);
+          console.log(`🔒 Fenêtre ${provider} fermée (check #${checkCount})`);
           this.cleanup();
           
-          // Si pas de callback détecté, forcer la synchronisation
-          if (!connectionDetected) {
-            console.log(`🔄 Force synchronisation après fermeture ${provider}`);
-            setTimeout(() => {
-              onComplete();
-            }, 1000);
-          }
+          // TOUJOURS synchroniser quand la fenêtre se ferme
+          console.log(`🔄 Synchronisation forcée après fermeture ${provider}`);
+          setTimeout(() => {
+            onComplete();
+          }, 1500);
           return;
         }
 
-        // Fermeture automatique après 30 secondes
+        // Vérifier l'URL de la fenêtre pour détecter les redirections
+        try {
+          const windowUrl = authWindow.location.href;
+          if (windowUrl && windowUrl.includes('oauth-callback')) {
+            console.log(`🔗 Détection redirect OAuth dans l'URL: ${windowUrl}`);
+            connectionDetected = true;
+            this.cleanup();
+            
+            // Forcer la synchronisation
+            setTimeout(() => {
+              console.log(`🔄 Synchronisation après détection URL ${provider}`);
+              onComplete();
+            }, 1500);
+            return;
+          }
+        } catch (urlError) {
+          // Normal si cross-origin, continuer la surveillance
+        }
+
+        // Fermeture automatique après timeout
         if (checkCount >= this.MAX_CHECKS) {
-          console.log(`⏰ Fermeture automatique après 30 secondes pour ${provider}`);
+          console.log(`⏰ Fermeture automatique après ${this.MAX_CHECKS} secondes pour ${provider}`);
           
           try {
             authWindow.close();
@@ -119,30 +135,30 @@ export class WindowMonitor {
           
           this.cleanup();
           
-          // Toujours actualiser après timeout
+          // Synchroniser après timeout
           setTimeout(() => {
-            console.log(`🔄 Actualisation automatique après timeout ${provider}`);
+            console.log(`🔄 Synchronisation après timeout ${provider}`);
             onComplete();
-          }, 1000);
+          }, 1500);
           
           return;
         }
 
-        // Programmer la prochaine vérification (toutes les 500ms pour plus de réactivité)
+        // Programmer la prochaine vérification
         if (checkCount < this.MAX_CHECKS) {
-          this.checkWindowInterval = setTimeout(checkWindow, 500);
+          this.checkWindowInterval = setTimeout(checkWindow, 1000);
         }
 
       } catch (error) {
         console.log(`⚠️ Erreur surveillance ${provider}:`, error);
         if (checkCount < this.MAX_CHECKS && !connectionDetected) {
-          this.checkWindowInterval = setTimeout(checkWindow, 500);
+          this.checkWindowInterval = setTimeout(checkWindow, 1000);
         }
       }
     };
 
     // Démarrer la surveillance immédiatement
-    this.checkWindowInterval = setTimeout(checkWindow, 500);
+    this.checkWindowInterval = setTimeout(checkWindow, 1000);
   }
 
   cleanup(): void {
