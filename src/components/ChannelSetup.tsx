@@ -74,7 +74,10 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
       window.history.replaceState({}, '', window.location.pathname);
       setConnecting(null);
       setHasLoadedAccounts(false);
-      fetchAccountsOnce();
+      // Forcer un rafraîchissement après un délai
+      setTimeout(() => {
+        fetchAccountsOnce();
+      }, 1000);
     } else if (connection === 'failed' && provider) {
       console.log(`❌ Connexion ${provider} échouée via URL`);
       toast({
@@ -154,14 +157,17 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
             const handleComplete = () => {
               setConnecting(null);
               setHasLoadedAccounts(false);
-              fetchAccountsOnce();
+              // Rafraîchir avec un délai plus long
+              setTimeout(() => {
+                fetchAccountsOnce();
+              }, 2000);
             };
 
             oauthManagerRef.current.startWindowMonitoring(authWindow, provider, handleComplete, toast);
             
             toast({
               title: "Autorisation en cours",
-              description: `Autorisez l'accès à ${provider} dans la nouvelle fenêtre. Elle se fermera automatiquement dans 1 minute.`,
+              description: `Autorisez l'accès à ${provider} dans la nouvelle fenêtre.`,
             });
           } else {
             setConnecting(null);
@@ -187,7 +193,9 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
         });
         if (!fetchingRef.current) {
           setHasLoadedAccounts(false);
-          await fetchAccountsOnce();
+          setTimeout(() => {
+            fetchAccountsOnce();
+          }, 1000);
         }
       }
     } catch (error) {

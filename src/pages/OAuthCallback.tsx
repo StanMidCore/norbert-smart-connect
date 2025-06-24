@@ -22,10 +22,9 @@ const OAuthCallback = () => {
       console.log('📤 Envoi du message à la fenêtre parent:', message);
       window.opener.postMessage(message, '*');
       
-      // Fermer la popup après un court délai
-      setTimeout(() => {
-        window.close();
-      }, 1000);
+      // Fermer la popup immédiatement après envoi du message
+      window.close();
+      
     } else {
       // Fallback si pas de fenêtre parent (redirection directe)
       console.log('🔄 Pas de fenêtre parent, redirection vers l\'accueil');
@@ -37,8 +36,8 @@ const OAuthCallback = () => {
     <div className="min-h-screen bg-app-bg flex items-center justify-center p-4">
       <div className="text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-main mx-auto mb-4"></div>
-        <p className="text-main">Finalisation de la connexion...</p>
-        <p className="text-sm text-gray-600 mt-2">Cette fenêtre va se fermer automatiquement.</p>
+        <p className="text-main">Connexion réussie !</p>
+        <p className="text-sm text-gray-600 mt-2">Cette fenêtre va se fermer automatiquement...</p>
       </div>
     </div>
   );

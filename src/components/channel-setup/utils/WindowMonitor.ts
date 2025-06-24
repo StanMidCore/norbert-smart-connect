@@ -6,7 +6,7 @@ export interface ToastFunction {
 export class WindowMonitor {
   private checkWindowInterval: NodeJS.Timeout | null = null;
   private messageListener: ((event: MessageEvent) => void) | null = null;
-  private readonly MAX_CHECKS = 60; // 1 minute max (60 * 1000ms)
+  private readonly MAX_CHECKS = 30; // Réduit à 30 secondes
 
   startMonitoring(
     authWindow: Window,
@@ -39,11 +39,26 @@ export class WindowMonitor {
           // Nettoyer la surveillance
           this.cleanup();
           
+          // Fermer la fenêtre si elle n'est pas déjà fermée
+          if (authWindow && !authWindow.closed) {
+            try {
+              authWindow.close();
+            } catch (e) {
+              console.log('Fenêtre déjà fermée');
+            }
+          }
+          
           if (success) {
             onToast({
               title: "Connexion réussie",
               description: `Votre compte ${provider} a été connecté avec succès`,
             });
+            
+            // Actualiser les comptes immédiatement
+            setTimeout(() => {
+              console.log(`🔄 Actualisation des comptes après callback ${provider}`);
+              onComplete();
+            }, 500);
           } else {
             onToast({
               title: "Échec de la connexion",
@@ -51,12 +66,6 @@ export class WindowMonitor {
               variant: "destructive",
             });
           }
-          
-          // Actualiser les comptes après un court délai
-          setTimeout(() => {
-            console.log(`🔄 Actualisation des comptes après callback ${provider}`);
-            onComplete();
-          }, 1000);
         }
       }
     };
@@ -64,60 +73,59 @@ export class WindowMonitor {
     // Ajouter l'écouteur de messages
     window.addEventListener('message', this.messageListener);
 
-    // Surveillance traditionnelle de la fenêtre pour les cas où les messages ne marchent pas
+    // Surveillance traditionnelle de la fenêtre
     const checkWindow = () => {
       checkCount++;
       
       try {
         // Vérifier si la fenêtre est fermée manuellement
         if (authWindow.closed) {
-          console.log(`🔒 Fenêtre ${provider} fermée manuellement`);
+          console.log(`🔒 Fenêtre ${provider} fermée`);
           this.cleanup();
           
-          // Actualiser les comptes après fermeture manuelle
+          // Actualiser les comptes après fermeture
           setTimeout(() => {
-            console.log(`🔄 Actualisation des comptes après fermeture manuelle ${provider}`);
+            console.log(`🔄 Actualisation des comptes après fermeture ${provider}`);
             onComplete();
           }, 1000);
           return;
         }
 
-        // Fermeture automatique après 1 minute pour éviter le blocage
+        // Fermeture automatique après 30 secondes
         if (checkCount >= this.MAX_CHECKS) {
-          console.log(`⏰ Fermeture automatique après 1 minute pour ${provider}`);
+          console.log(`⏰ Fermeture automatique après 30 secondes pour ${provider}`);
           authWindow.close();
           
           this.cleanup();
           
           onToast({
-            title: "Fenêtre fermée automatiquement",
-            description: `La fenêtre ${provider} a été fermée. Si vous avez terminé l'autorisation, vos comptes vont être actualisés.`,
+            title: "Connexion en cours",
+            description: `Vérification de la connexion ${provider} en cours...`,
           });
           
           // Actualiser les comptes
           setTimeout(() => {
             console.log(`🔄 Actualisation automatique des comptes pour ${provider}`);
             onComplete();
-          }, 2000);
+          }, 1000);
           
           return;
         }
 
-        // Programmer la prochaine vérification de manière non-bloquante
-        if (!authWindow.closed && checkCount < this.MAX_CHECKS) {
+        // Programmer la prochaine vérification
+        if (checkCount < this.MAX_CHECKS) {
           this.checkWindowInterval = setTimeout(checkWindow, 1000);
         }
 
       } catch (error) {
-        // Erreur générale, continuer la surveillance
         console.log(`⚠️ Erreur surveillance ${provider}:`, error);
-        if (!authWindow.closed && checkCount < this.MAX_CHECKS) {
+        if (checkCount < this.MAX_CHECKS) {
           this.checkWindowInterval = setTimeout(checkWindow, 1000);
         }
       }
     };
 
-    // Démarrer la surveillance avec un délai initial
+    // Démarrer la surveillance
     this.checkWindowInterval = setTimeout(checkWindow, 1000);
   }
 

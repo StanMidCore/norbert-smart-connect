@@ -15,31 +15,37 @@ interface QRCodeDialogProps {
 const QRCodeDialog = ({ qrCode, connecting, onClose, onRegenerate, onError }: QRCodeDialogProps) => {
   const handleImageError = () => {
     console.error('❌ Erreur chargement QR code');
-    onError('Format QR code invalide. Veuillez réessayer.');
-    onClose();
+    onError('Impossible de charger le QR code. Veuillez réessayer.');
   };
 
   const handleImageLoad = () => {
     console.log('✅ QR code chargé avec succès');
   };
 
-  // Vérifier si le QR code est au bon format
+  // Améliorer la gestion du format QR code
   const getQRCodeSrc = () => {
     if (!qrCode) return '';
     
-    // Si c'est déjà une URL data complète, l'utiliser directement
+    console.log('🔍 QR code reçu:', qrCode.substring(0, 100) + '...');
+    
+    // Si c'est déjà une URL data complète
     if (qrCode.startsWith('data:image/')) {
       return qrCode;
     }
     
-    // Si c'est juste le base64, ajouter le préfixe
-    if (qrCode.includes(',')) {
-      // Format: "data:image/png;base64,..."
-      return `data:image/png;base64,${qrCode.split(',')[1]}`;
+    // Si c'est un format base64 avec préfixe
+    if (qrCode.includes('data:image')) {
+      return qrCode;
     }
     
-    // Format simple base64
-    return `data:image/png;base64,${qrCode}`;
+    // Si c'est juste le contenu base64 brut (format Unipile)
+    // Essayer de détecter le format d'image
+    let mimeType = 'image/png';
+    if (qrCode.startsWith('/9j/') || qrCode.startsWith('iVBOR')) {
+      mimeType = qrCode.startsWith('/9j/') ? 'image/jpeg' : 'image/png';
+    }
+    
+    return `data:${mimeType};base64,${qrCode}`;
   };
 
   return (
