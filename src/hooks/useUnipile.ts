@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -47,9 +48,9 @@ export const useUnipile = () => {
         return;
       }
 
-      if (!data.success) {
-        console.error('Erreur dans la réponse:', data.error);
-        setError(data.error);
+      if (!data || !data.success) {
+        console.error('Erreur dans la réponse:', data?.error);
+        setError(data?.error || 'Erreur inconnue');
         setChannels([]);
         setAccounts([]);
         return;
@@ -58,9 +59,9 @@ export const useUnipile = () => {
       console.log('Comptes Unipile récupérés:', data.accounts?.length || 0);
       console.log('Canaux locaux:', data.norbert_channels?.length || 0);
 
-      // Utiliser les comptes réels d'Unipile s'ils existent, sinon les canaux locaux
-      const realAccounts = data.accounts || [];
-      const localChannels = data.norbert_channels || [];
+      // S'assurer que les données sont des tableaux
+      const realAccounts = Array.isArray(data.accounts) ? data.accounts : [];
+      const localChannels = Array.isArray(data.norbert_channels) ? data.norbert_channels : [];
       
       // Convertir les comptes Unipile en format channel pour l'affichage
       const formattedChannels: UnipileChannel[] = realAccounts.map((account: any) => ({
@@ -97,7 +98,7 @@ export const useUnipile = () => {
     try {
       // Pour Instagram, afficher un message d'information
       if (provider.toLowerCase() === 'instagram') {
-        throw new Error('Instagram nécessite une configuration manuelle. Veuillez vous connecter directement sur votre dashboard Unipile.');
+        throw new Error('Instagram n\'est pas disponible pour l\'instant. Cette fonctionnalité sera ajoutée prochainement.');
       }
 
       const { data, error } = await supabase.functions.invoke('connect-unipile-account', {

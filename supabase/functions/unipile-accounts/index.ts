@@ -86,7 +86,7 @@ serve(async (req) => {
         console.error('Erreur API Unipile:', response.status, response.statusText);
         
         // Fallback: récupérer les canaux depuis notre base de données
-        const { data: channels, error: channelsError } = await supabase
+        const { data: channels } = await supabase
           .from('channels')
           .select('*')
           .eq('user_id', user.id)
@@ -117,9 +117,12 @@ serve(async (req) => {
       const unipileAccounts = await response.json();
       console.log('Comptes Unipile récupérés:', unipileAccounts?.length || 0);
 
+      // S'assurer que unipileAccounts est un tableau
+      const accountsArray = Array.isArray(unipileAccounts) ? unipileAccounts : [];
+
       // Synchroniser avec notre base de données
-      if (unipileAccounts && unipileAccounts.length > 0) {
-        for (const account of unipileAccounts) {
+      if (accountsArray.length > 0) {
+        for (const account of accountsArray) {
           if (account.is_active) {
             await supabase
               .from('channels')
@@ -141,7 +144,7 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({ 
         success: true,
-        accounts: unipileAccounts || [],
+        accounts: accountsArray,
         norbert_channels: []
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

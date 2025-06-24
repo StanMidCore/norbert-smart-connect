@@ -47,7 +47,7 @@ const AvailableProvidersList = ({ channels, connecting, onConnect }: AvailablePr
       name: 'Instagram',
       icon: Instagram,
       color: 'text-pink-600',
-      description: 'Configuration manuelle requise',
+      description: 'Bientôt disponible',
       disabled: true,
     },
   ];
@@ -82,7 +82,7 @@ const AvailableProvidersList = ({ channels, connecting, onConnect }: AvailablePr
                     </Badge>
                   ) : provider.disabled ? (
                     <Badge variant="secondary" className="bg-gray-200 text-gray-600">
-                      Manuel
+                      Bientôt
                     </Badge>
                   ) : (
                     <Button
@@ -104,14 +104,6 @@ const AvailableProvidersList = ({ channels, connecting, onConnect }: AvailablePr
                   )}
                 </div>
               </div>
-              
-              {provider.id === 'instagram' && (
-                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    Instagram nécessite une configuration manuelle via votre dashboard Unipile.
-                  </p>
-                </div>
-              )}
             </CardContent>
           </Card>
         );

@@ -23,6 +23,25 @@ const QRCodeDialog = ({ qrCode, connecting, onClose, onRegenerate, onError }: QR
     console.log('✅ QR code chargé avec succès');
   };
 
+  // Vérifier si le QR code est au bon format
+  const getQRCodeSrc = () => {
+    if (!qrCode) return '';
+    
+    // Si c'est déjà une URL data complète, l'utiliser directement
+    if (qrCode.startsWith('data:image/')) {
+      return qrCode;
+    }
+    
+    // Si c'est juste le base64, ajouter le préfixe
+    if (qrCode.includes(',')) {
+      // Format: "data:image/png;base64,..."
+      return `data:image/png;base64,${qrCode.split(',')[1]}`;
+    }
+    
+    // Format simple base64
+    return `data:image/png;base64,${qrCode}`;
+  };
+
   return (
     <Dialog open={!!qrCode} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -38,7 +57,7 @@ const QRCodeDialog = ({ qrCode, connecting, onClose, onRegenerate, onError }: QR
         <div className="text-center space-y-4">
           <div className="bg-white p-4 rounded-lg border-2 border-gray-200 mx-auto inline-block">
             <img 
-              src={`data:image/png;base64,${qrCode}`} 
+              src={getQRCodeSrc()} 
               alt="QR Code WhatsApp" 
               className="w-64 h-64 mx-auto"
               onError={handleImageError}
