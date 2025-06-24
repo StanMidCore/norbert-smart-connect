@@ -70,28 +70,39 @@ export class WindowMonitor {
             onComplete();
           }, 1000);
         }
+      } else if (event.data?.type === 'oauth-manual-close') {
+        // Gestion explicite de la fermeture manuelle
+        console.log(`🔒 Fermeture manuelle détectée pour ${provider}`);
+        connectionDetected = true;
+        this.cleanup();
+        
+        // Actualiser après fermeture manuelle
+        setTimeout(() => {
+          console.log(`🔄 Actualisation après fermeture manuelle ${provider}`);
+          onComplete();
+        }, 1500);
       }
     };
 
     // Ajouter l'écouteur de messages
     window.addEventListener('message', this.messageListener);
 
-    // Surveillance traditionnelle de la fenêtre
+    // Surveillance traditionnelle de la fenêtre avec vérification plus fréquente
     const checkWindow = () => {
       checkCount++;
       
       try {
         // Vérifier si la fenêtre est fermée manuellement
         if (authWindow.closed) {
-          console.log(`🔒 Fenêtre ${provider} fermée manuellement`);
+          console.log(`🔒 Fenêtre ${provider} fermée`);
           this.cleanup();
           
-          // Si pas de connexion détectée, actualiser quand même pour vérifier
+          // Si pas de callback détecté, forcer la synchronisation
           if (!connectionDetected) {
+            console.log(`🔄 Force synchronisation après fermeture ${provider}`);
             setTimeout(() => {
-              console.log(`🔄 Actualisation des comptes après fermeture manuelle ${provider}`);
               onComplete();
-            }, 1500);
+            }, 1000);
           }
           return;
         }
@@ -108,38 +119,30 @@ export class WindowMonitor {
           
           this.cleanup();
           
-          // Si pas de connexion détectée, montrer un message informatif
-          if (!connectionDetected) {
-            onToast({
-              title: "Vérification en cours",
-              description: `Vérification de la connexion ${provider}...`,
-            });
-          }
-          
-          // Actualiser les comptes dans tous les cas
+          // Toujours actualiser après timeout
           setTimeout(() => {
-            console.log(`🔄 Actualisation automatique des comptes pour ${provider}`);
+            console.log(`🔄 Actualisation automatique après timeout ${provider}`);
             onComplete();
-          }, 1500);
+          }, 1000);
           
           return;
         }
 
-        // Programmer la prochaine vérification
+        // Programmer la prochaine vérification (toutes les 500ms pour plus de réactivité)
         if (checkCount < this.MAX_CHECKS) {
-          this.checkWindowInterval = setTimeout(checkWindow, 1000);
+          this.checkWindowInterval = setTimeout(checkWindow, 500);
         }
 
       } catch (error) {
         console.log(`⚠️ Erreur surveillance ${provider}:`, error);
         if (checkCount < this.MAX_CHECKS && !connectionDetected) {
-          this.checkWindowInterval = setTimeout(checkWindow, 1000);
+          this.checkWindowInterval = setTimeout(checkWindow, 500);
         }
       }
     };
 
-    // Démarrer la surveillance
-    this.checkWindowInterval = setTimeout(checkWindow, 1000);
+    // Démarrer la surveillance immédiatement
+    this.checkWindowInterval = setTimeout(checkWindow, 500);
   }
 
   cleanup(): void {

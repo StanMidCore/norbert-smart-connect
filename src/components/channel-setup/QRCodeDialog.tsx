@@ -22,12 +22,11 @@ const QRCodeDialog = ({ qrCode, connecting, onClose, onRegenerate, onError }: QR
     console.log('✅ QR code chargé avec succès');
   };
 
-  // Améliorer la gestion du format QR code
+  // Traitement amélioré du QR code
   const getQRCodeSrc = () => {
     if (!qrCode) return '';
     
-    console.log('🔍 QR code reçu (longueur):', qrCode.length);
-    console.log('🔍 QR code début:', qrCode.substring(0, 50));
+    console.log('🔍 QR code reçu:', qrCode.substring(0, 100) + '...');
     
     // Si c'est déjà une URL data complète
     if (qrCode.startsWith('data:image/')) {
@@ -35,7 +34,7 @@ const QRCodeDialog = ({ qrCode, connecting, onClose, onRegenerate, onError }: QR
       return qrCode;
     }
     
-    // Nettoyer le QR code des caractères indésirables
+    // Nettoyer le QR code
     let cleanQrCode = qrCode.trim();
     
     // Supprimer les guillemets si présents
@@ -43,18 +42,41 @@ const QRCodeDialog = ({ qrCode, connecting, onClose, onRegenerate, onError }: QR
       cleanQrCode = cleanQrCode.slice(1, -1);
     }
     
-    // Vérifier si c'est du base64 valide
+    // Le QR code de Unipile peut être sous plusieurs formats
+    // Format 1: Base64 direct
+    // Format 2: String avec des caractères spéciaux à encoder
+    
     try {
-      // Test de décodage base64
-      atob(cleanQrCode);
-      console.log('✅ QR code base64 valide');
-      
-      // Retourner comme PNG par défaut
+      // Essayer de décoder comme base64
+      const decoded = atob(cleanQrCode);
+      console.log('✅ QR code décodé comme base64, longueur:', decoded.length);
       return `data:image/png;base64,${cleanQrCode}`;
     } catch (e) {
-      console.error('❌ QR code base64 invalide:', e);
-      onError('Format QR code invalide. Veuillez régénérer.');
-      return '';
+      console.log('⚠️ Pas du base64 standard, tentative d\'encodage direct');
+      
+      // Si ce n'est pas du base64, essayer de l'encoder
+      try {
+        const encoded = btoa(cleanQrCode);
+        return `data:image/png;base64,${encoded}`;
+      } catch (encodeError) {
+        console.error('❌ Impossible d\'encoder le QR code:', encodeError);
+        
+        // Dernier recours: utiliser comme URL directe si c'est une URL
+        if (cleanQrCode.startsWith('http')) {
+          console.log('🔗 Utilisation comme URL directe');
+          return cleanQrCode;
+        }
+        
+        // Si tout échoue, essayer comme SVG
+        if (cleanQrCode.includes('<svg') || cleanQrCode.includes('<?xml')) {
+          console.log('📄 Traitement comme SVG');
+          const svgData = encodeURIComponent(cleanQrCode);
+          return `data:image/svg+xml,${svgData}`;
+        }
+        
+        onError('Format QR code non reconnu. Veuillez régénérer.');
+        return '';
+      }
     }
   };
 
@@ -81,6 +103,7 @@ const QRCodeDialog = ({ qrCode, connecting, onClose, onRegenerate, onError }: QR
                 className="w-64 h-64 mx-auto"
                 onError={handleImageError}
                 onLoad={handleImageLoad}
+                style={{ imageRendering: 'pixelated' }}
               />
             </div>
           ) : (
@@ -91,6 +114,16 @@ const QRCodeDialog = ({ qrCode, connecting, onClose, onRegenerate, onError }: QR
               </div>
             </div>
           )}
+          
+          {/* Debugging info - à supprimer en production */}
+          {qrCode && (
+            <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+              <p>Debug: QR Code type détecté</p>
+              <p>Longueur: {qrCode.length}</p>
+              <p>Format: {qrCode.startsWith('data:') ? 'Data URL' : qrCode.startsWith('http') ? 'HTTP URL' : 'Raw Data'}</p>
+            </div>
+          )}
+          
           <div className="space-y-2">
             <p className="text-sm text-gray-600">
               1. Ouvrez WhatsApp Business sur votre téléphone
