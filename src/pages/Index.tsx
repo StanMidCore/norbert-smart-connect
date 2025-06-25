@@ -10,7 +10,7 @@ type AppScreen = 'signup' | 'channels' | 'profile' | 'dashboard' | 'calendar' | 
 
 const Index = () => {
   // Changer l'écran par défaut vers 'channels' pour les tests
-  const [currentScreen, setCurrentScreen] = useState<AppScreen>('channels');
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>('signup');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [hasCheckedUrlParams, setHasCheckedUrlParams] = useState(false);
   
@@ -18,13 +18,16 @@ const Index = () => {
   useEffect(() => {
     if (hasCheckedUrlParams) return;
     
+    console.log('🔍 Vérification des paramètres URL...');
     const urlParams = new URLSearchParams(window.location.search);
     const paymentSuccess = urlParams.get('payment_success');
     const paymentError = urlParams.get('payment_error');
     const connection = urlParams.get('connection');
     
+    console.log('📋 Paramètres détectés:', { paymentSuccess, paymentError, connection });
+    
     // Vérifier si c'est un callback OAuth
-    if (connection && window.location.pathname === '/oauth-callback') {
+    if (connection && (window.location.pathname === '/oauth-callback' || connection === 'success' || connection === 'failed')) {
       console.log('🔗 Callback OAuth détecté, affichage de la page callback');
       setCurrentScreen('oauth-callback');
       setHasCheckedUrlParams(true);
@@ -34,12 +37,18 @@ const Index = () => {
     if (paymentSuccess === 'true') {
       console.log('🎉 Paiement réussi détecté dans l\'URL, redirection vers canaux');
       setCurrentScreen('channels');
-      // Nettoyer l'URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Nettoyer l'URL après un court délai pour permettre le chargement
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }, 100);
     } else if (paymentError === 'true') {
       console.log('❌ Erreur de paiement détectée dans l\'URL');
       setCurrentScreen('signup');
-      window.history.replaceState({}, document.title, window.location.pathname);
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }, 100);
+    } else {
+      console.log('ℹ️ Aucun paramètre de paiement détecté, écran par défaut');
     }
     
     setHasCheckedUrlParams(true);
@@ -83,11 +92,22 @@ const Index = () => {
   // Écran d'inscription
   if (currentScreen === 'signup') {
     return (
-      <SignupFlow 
-        onComplete={() => setCurrentScreen('dashboard')}
-        onChannelSetup={handleChannelSetup}
-        onProfileSetup={() => setCurrentScreen('profile')}
-      />
+      <div>
+        {/* Bouton de test pour aller directement aux canaux */}
+        <div className="fixed top-4 right-4 z-50">
+          <button 
+            onClick={() => setCurrentScreen('channels')}
+            className="text-sm text-green-600 underline bg-white px-2 py-1 rounded shadow"
+          >
+            Test → Canaux
+          </button>
+        </div>
+        <SignupFlow 
+          onComplete={() => setCurrentScreen('dashboard')}
+          onChannelSetup={handleChannelSetup}
+          onProfileSetup={() => setCurrentScreen('profile')}
+        />
+      </div>
     );
   }
   
@@ -96,13 +116,19 @@ const Index = () => {
     console.log('🔗 Affichage de l\'écran de configuration des canaux');
     return (
       <div>
-        {/* Bouton pour revenir à l'inscription si nécessaire */}
-        <div className="fixed top-4 left-4 z-50">
+        {/* Boutons de navigation pour déboguer */}
+        <div className="fixed top-4 left-4 z-50 space-x-2">
           <button 
             onClick={() => setCurrentScreen('signup')}
             className="text-sm text-blue-600 underline bg-white px-2 py-1 rounded shadow"
           >
-            ← Retour inscription
+            ← Inscription
+          </button>
+          <button 
+            onClick={() => setCurrentScreen('dashboard')}
+            className="text-sm text-purple-600 underline bg-white px-2 py-1 rounded shadow"
+          >
+            Dashboard →
           </button>
         </div>
         <ChannelSetup onComplete={handleChannelSetupComplete} />

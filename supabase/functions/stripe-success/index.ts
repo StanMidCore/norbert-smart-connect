@@ -8,11 +8,16 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log('🔄 Début du traitement stripe-success');
+  
   const url = new URL(req.url);
   const sessionId = url.searchParams.get('session_id');
   const signupId = url.searchParams.get('signup_id');
 
+  console.log('📋 Paramètres reçus:', { sessionId, signupId });
+
   if (!sessionId || !signupId) {
+    console.log('❌ Paramètres manquants');
     return new Response('Paramètres manquants', { status: 400 });
   }
 
@@ -34,9 +39,11 @@ serve(async (req) => {
     }
 
     const session = await stripeResponse.json();
-    console.log('Session Stripe récupérée:', session);
+    console.log('Session Stripe récupérée:', session.payment_status);
 
     if (session.payment_status === 'paid' || session.mode === 'subscription') {
+      console.log('✅ Paiement confirmé, mise à jour de la base de données');
+      
       // Marquer le paiement comme complété
       const { data: updatedSignup, error: updateError } = await supabase
         .from('signup_process')
@@ -75,8 +82,11 @@ serve(async (req) => {
       // TODO: Ici, appeler les APIs pour créer le compte Unipile et workflow N8N
       console.log('TODO: Créer compte Unipile et workflow N8N pour:', updatedSignup.email);
 
-      // Rediriger vers l'application avec un token ou session
-      const redirectUrl = `${req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co'}/?payment_success=true&email=${encodeURIComponent(updatedSignup.email)}`;
+      // Construire l'URL de redirection avec les bons paramètres
+      const origin = req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co';
+      const redirectUrl = `${origin}/?payment_success=true&email=${encodeURIComponent(updatedSignup.email)}&redirect=channels`;
+      
+      console.log('🔗 Redirection vers:', redirectUrl);
       
       return new Response(null, {
         status: 302,
@@ -93,7 +103,8 @@ serve(async (req) => {
     console.error('Erreur stripe-success:', error);
     
     // Rediriger vers une page d'erreur
-    const errorUrl = `${req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co'}/?payment_error=true`;
+    const origin = req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co';
+    const errorUrl = `${origin}/?payment_error=true`;
     
     return new Response(null, {
       status: 302,
