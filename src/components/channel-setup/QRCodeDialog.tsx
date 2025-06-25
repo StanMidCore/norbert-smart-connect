@@ -3,7 +3,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { QrCode, Loader2, RefreshCw } from 'lucide-react';
-import QRCode from 'qrcode';
+import * as QRCode from 'qrcode';
 
 interface QRCodeDialogProps {
   qrCode: string | null;
