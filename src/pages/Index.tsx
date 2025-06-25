@@ -9,7 +9,8 @@ import OAuthCallback from '@/pages/OAuthCallback';
 type AppScreen = 'signup' | 'channels' | 'profile' | 'dashboard' | 'calendar' | 'clients' | 'settings' | 'client-detail' | 'oauth-callback';
 
 const Index = () => {
-  const [currentScreen, setCurrentScreen] = useState<AppScreen>('signup');
+  // Changer l'écran par défaut vers 'channels' pour les tests
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>('channels');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [hasCheckedUrlParams, setHasCheckedUrlParams] = useState(false);
   
@@ -93,7 +94,20 @@ const Index = () => {
   // Écran configuration canaux
   if (currentScreen === 'channels') {
     console.log('🔗 Affichage de l\'écran de configuration des canaux');
-    return <ChannelSetup onComplete={handleChannelSetupComplete} />;
+    return (
+      <div>
+        {/* Bouton pour revenir à l'inscription si nécessaire */}
+        <div className="fixed top-4 left-4 z-50">
+          <button 
+            onClick={() => setCurrentScreen('signup')}
+            className="text-sm text-blue-600 underline bg-white px-2 py-1 rounded shadow"
+          >
+            ← Retour inscription
+          </button>
+        </div>
+        <ChannelSetup onComplete={handleChannelSetupComplete} />
+      </div>
+    );
   }
   
   // Écran configuration profil
