@@ -3,7 +3,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { QrCode, Loader2, RefreshCw } from 'lucide-react';
-import qrcode from 'qr-code-generator';
+import * as QRCode from 'qrcode-generator';
 
 interface QRCodeDialogProps {
   qrCode: string | null;
@@ -34,8 +34,8 @@ const QRCodeDialog = ({ qrCode, connecting, onClose, onRegenerate, onError }: QR
         cleanData = cleanData.slice(1, -1);
       }
       
-      // Générer le QR code avec qr-code-generator
-      const qr = qrcode(0, 'M');
+      // Générer le QR code avec qrcode-generator
+      const qr = QRCode(0, 'M');
       qr.addData(cleanData);
       qr.make();
       
