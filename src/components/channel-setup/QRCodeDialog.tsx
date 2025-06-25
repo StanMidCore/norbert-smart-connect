@@ -3,7 +3,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { QrCode, Loader2, RefreshCw } from 'lucide-react';
-import * as QRCode from 'qrcode';
+import qrcode from 'qr-code-generator';
 
 interface QRCodeDialogProps {
   qrCode: string | null;
@@ -14,7 +14,7 @@ interface QRCodeDialogProps {
 }
 
 const QRCodeDialog = ({ qrCode, connecting, onClose, onRegenerate, onError }: QRCodeDialogProps) => {
-  const [qrCodeUrl, setQrCodeUrl] = React.useState<string>('');
+  const [qrCodeSvg, setQrCodeSvg] = React.useState<string>('');
   const [isGenerating, setIsGenerating] = React.useState(false);
 
   React.useEffect(() => {
@@ -34,17 +34,15 @@ const QRCodeDialog = ({ qrCode, connecting, onClose, onRegenerate, onError }: QR
         cleanData = cleanData.slice(1, -1);
       }
       
-      // Générer le QR code avec la bibliothèque qrcode
-      const qrDataUrl = await QRCode.toDataURL(cleanData, {
-        width: 256,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      });
+      // Générer le QR code avec qr-code-generator
+      const qr = qrcode(0, 'M');
+      qr.addData(cleanData);
+      qr.make();
       
-      setQrCodeUrl(qrDataUrl);
+      // Créer le SVG avec une taille appropriée
+      const svgString = qr.createSvgTag(4, 0);
+      setQrCodeSvg(svgString);
+      
       console.log('✅ QR code généré avec succès');
     } catch (error) {
       console.error('❌ Erreur génération QR code:', error);
@@ -67,12 +65,11 @@ const QRCodeDialog = ({ qrCode, connecting, onClose, onRegenerate, onError }: QR
           </DialogDescription>
         </DialogHeader>
         <div className="text-center space-y-4">
-          {qrCodeUrl && !isGenerating ? (
+          {qrCodeSvg && !isGenerating ? (
             <div className="bg-white p-4 rounded-lg border-2 border-gray-200 mx-auto inline-block">
-              <img 
-                src={qrCodeUrl} 
-                alt="QR Code WhatsApp" 
-                className="w-64 h-64 mx-auto"
+              <div 
+                className="w-64 h-64 mx-auto flex items-center justify-center"
+                dangerouslySetInnerHTML={{ __html: qrCodeSvg }}
               />
             </div>
           ) : (
