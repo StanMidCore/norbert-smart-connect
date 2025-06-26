@@ -39,6 +39,8 @@ serve(async (req) => {
 
     // Récupération de la clé API depuis les secrets Supabase
     const unipileApiKey = Deno.env.get('UNIPILE_API_KEY');
+    console.log('Clé API Unipile:', unipileApiKey ? 'Présente' : 'Absente');
+    
     if (!unipileApiKey) {
       console.error('Clé API Unipile manquante dans les secrets');
       
@@ -46,26 +48,21 @@ serve(async (req) => {
       const { data: channels, error: channelsError } = await supabase
         .from('channels')
         .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'connected');
+        .eq('user_id', user.id);
 
-      const formattedChannels = (channels || []).map(channel => ({
-        id: channel.unipile_account_id,
-        unipile_account_id: channel.unipile_account_id,
-        channel_type: channel.channel_type,
-        status: channel.status,
-        provider_info: channel.provider_info || {
-          provider: channel.channel_type,
-          identifier: `${channel.channel_type}_account`,
-          name: `Compte ${channel.channel_type.charAt(0).toUpperCase() + channel.channel_type.slice(1)}`
-        }
-      }));
+      // Marquer tous les canaux locaux comme "déconnectés" car on ne peut pas vérifier leur statut
+      if (channels && channels.length > 0) {
+        await supabase
+          .from('channels')
+          .update({ status: 'disconnected' })
+          .eq('user_id', user.id);
+      }
 
       return new Response(JSON.stringify({ 
         success: true,
         accounts: [],
-        norbert_channels: formattedChannels,
-        note: 'Utilisation des canaux locaux (clé API Unipile manquante)'
+        norbert_channels: [],
+        note: 'Clé API Unipile manquante - tous les canaux marqués comme déconnectés'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -85,30 +82,17 @@ serve(async (req) => {
       if (!response.ok) {
         console.error('Erreur API Unipile:', response.status, response.statusText);
         
-        // Fallback: récupérer les canaux depuis notre base de données
-        const { data: channels } = await supabase
+        // Marquer tous les canaux locaux comme déconnectés
+        await supabase
           .from('channels')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'connected');
-
-        const formattedChannels = (channels || []).map(channel => ({
-          id: channel.unipile_account_id,
-          unipile_account_id: channel.unipile_account_id,
-          channel_type: channel.channel_type,
-          status: channel.status,
-          provider_info: channel.provider_info || {
-            provider: channel.channel_type,
-            identifier: `${channel.channel_type}_account`,
-            name: `Compte ${channel.channel_type.charAt(0).toUpperCase() + channel.channel_type.slice(1)}`
-          }
-        }));
+          .update({ status: 'disconnected' })
+          .eq('user_id', user.id);
 
         return new Response(JSON.stringify({ 
           success: true,
           accounts: [],
-          norbert_channels: formattedChannels,
-          note: 'Utilisation des canaux locaux (erreur API Unipile)'
+          norbert_channels: [],
+          note: `Erreur API Unipile (${response.status}) - canaux marqués comme déconnectés`
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -120,13 +104,20 @@ serve(async (req) => {
       // S'assurer que unipileAccounts est un tableau
       const accountsArray = Array.isArray(unipileAccounts) ? unipileAccounts : [];
 
-      // Synchroniser avec notre base de données
+      // Supprimer tous les anciens canaux locaux
+      await supabase
+        .from('channels')
+        .delete()
+        .eq('user_id', user.id);
+
+      // Synchroniser avec notre base de données - créer uniquement les comptes actifs
       if (accountsArray.length > 0) {
         for (const account of accountsArray) {
           if (account.is_active) {
+            console.log(`Synchronisation compte actif: ${account.provider} - ${account.id}`);
             await supabase
               .from('channels')
-              .upsert({
+              .insert({
                 user_id: user.id,
                 channel_type: account.provider.toLowerCase(),
                 unipile_account_id: account.id,
@@ -138,13 +129,15 @@ serve(async (req) => {
                   name: account.name || `Compte ${account.provider}`
                 }
               });
+          } else {
+            console.log(`Compte inactif ignoré: ${account.provider} - ${account.id}`);
           }
         }
       }
 
       return new Response(JSON.stringify({ 
         success: true,
-        accounts: accountsArray,
+        accounts: accountsArray.filter(acc => acc.is_active), // Retourner seulement les comptes actifs
         norbert_channels: []
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -153,30 +146,17 @@ serve(async (req) => {
     } catch (apiError) {
       console.error('Erreur lors de l\'appel à l\'API Unipile:', apiError);
       
-      // Fallback: récupérer les canaux depuis notre base de données
-      const { data: channels } = await supabase
+      // Marquer tous les canaux comme déconnectés en cas d'erreur réseau
+      await supabase
         .from('channels')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'connected');
-
-      const formattedChannels = (channels || []).map(channel => ({
-        id: channel.unipile_account_id,
-        unipile_account_id: channel.unipile_account_id,
-        channel_type: channel.channel_type,
-        status: channel.status,
-        provider_info: channel.provider_info || {
-          provider: channel.channel_type,
-          identifier: `${channel.channel_type}_account`,
-          name: `Compte ${channel.channel_type.charAt(0).toUpperCase() + channel.channel_type.slice(1)}`
-        }
-      }));
+        .update({ status: 'disconnected' })
+        .eq('user_id', user.id);
 
       return new Response(JSON.stringify({ 
         success: true,
         accounts: [],
-        norbert_channels: formattedChannels,
-        note: 'Utilisation des canaux locaux (erreur réseau Unipile)'
+        norbert_channels: [],
+        note: 'Erreur réseau Unipile - canaux marqués comme déconnectés'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

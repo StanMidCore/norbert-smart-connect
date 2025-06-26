@@ -27,15 +27,52 @@ serve(async (req) => {
     // Get demo user and database connection
     const { user, supabase } = await getDemoUser();
 
-    // Get Unipile API key
+    // Get Unipile API key with better error handling
     const unipileApiKey = Deno.env.get('UNIPILE_API_KEY');
+    console.log('Vérification clé API Unipile:', unipileApiKey ? 'Présente' : 'Absente');
+    
     if (!unipileApiKey) {
       console.error('Clé API Unipile manquante dans les secrets');
       return new Response(JSON.stringify({ 
-        error: 'Configuration manquante: clé API Unipile non configurée',
+        error: 'Configuration manquante: clé API Unipile non configurée. Veuillez vérifier vos secrets Supabase.',
         success: false 
       }), {
         status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Test the API key with a simple request
+    console.log('Test de la clé API Unipile...');
+    try {
+      const testResponse = await fetch('https://api2.unipile.com:13279/api/v1/accounts', {
+        method: 'GET',
+        headers: {
+          'X-API-KEY': unipileApiKey,
+          'accept': 'application/json'
+        }
+      });
+      
+      if (!testResponse.ok) {
+        console.error('Erreur test API Unipile:', testResponse.status, testResponse.statusText);
+        const errorData = await testResponse.json().catch(() => ({}));
+        return new Response(JSON.stringify({ 
+          error: `Clé API Unipile invalide (${testResponse.status}): ${errorData.title || testResponse.statusText}`,
+          success: false 
+        }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      console.log('✅ Clé API Unipile valide');
+    } catch (apiTestError) {
+      console.error('Erreur réseau test API:', apiTestError);
+      return new Response(JSON.stringify({ 
+        error: 'Impossible de contacter l\'API Unipile. Vérifiez votre connexion internet.',
+        success: false 
+      }), {
+        status: 503,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
