@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { RefreshCw, CheckCircle, Trash2 } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 
 interface ChannelSetupActionsProps {
   connectedChannelsCount: number;
@@ -14,39 +14,11 @@ interface ChannelSetupActionsProps {
 
 const ChannelSetupActions = ({ 
   connectedChannelsCount, 
-  onComplete, 
-  onRefresh, 
-  onCleanup,
-  isRefreshing 
+  onComplete
 }: ChannelSetupActionsProps) => {
   return (
     <Card>
-      <CardContent className="p-4 space-y-3">
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={onRefresh}
-            disabled={isRefreshing}
-            className="flex-1"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Actualiser
-          </Button>
-          
-          {onCleanup && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={onCleanup}
-              className="flex-1"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Nettoyer
-            </Button>
-          )}
-        </div>
-        
+      <CardContent className="p-4">
         <Button 
           onClick={onComplete}
           disabled={connectedChannelsCount === 0}

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -102,8 +101,8 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
 
   return (
     <div className="min-h-screen bg-app-bg">
-      {/* Header */}
-      <div className="bg-header border-b border-gray-200 px-4 py-3">
+      {/* Header avec safe area */}
+      <div className="bg-header border-b border-gray-200 px-4 py-3 pt-safe-offset-12 sm:pt-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="bg-cta p-2 rounded-lg">
@@ -182,7 +181,7 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
       </div>
 
       {/* Messages récents */}
-      <div className="p-4">
+      <div className="p-4 pb-24">
         <h2 className="text-lg font-semibold mb-3 text-main">Messages récents</h2>
         <div className="space-y-3">
           {recentMessages.map((message) => (
@@ -236,8 +235,8 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
         </div>
       </div>
 
-      {/* Navigation Footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-header border-t border-gray-200">
+      {/* Navigation Footer avec safe area */}
+      <div className="fixed bottom-0 left-0 right-0 bg-header border-t border-gray-200 pb-safe-offset-6 sm:pb-2">
         <div className="grid grid-cols-4 gap-1 p-2">
           <Button 
             variant="ghost" 

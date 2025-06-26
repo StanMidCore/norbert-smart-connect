@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Mail, Phone, Instagram, Facebook, Loader2 } from 'lucide-react';
+import { MessageSquare, Mail, Instagram, Loader2 } from 'lucide-react';
 import type { UnipileChannel } from '@/hooks/useUnipile';
 
 interface AvailableProvidersListProps {
@@ -36,19 +36,11 @@ const AvailableProvidersList = ({ channels, connecting, onConnect }: AvailablePr
       description: 'Connectez votre WhatsApp Business',
     },
     {
-      id: 'facebook',
-      name: 'Facebook Messenger',
-      icon: Facebook,
-      color: 'text-blue-700',
-      description: 'Connectez votre page Facebook',
-    },
-    {
       id: 'instagram',
       name: 'Instagram',
       icon: Instagram,
       color: 'text-pink-600',
-      description: 'Bientôt disponible',
-      disabled: true,
+      description: 'Connectez votre compte Instagram',
     },
   ];
 
@@ -56,8 +48,6 @@ const AvailableProvidersList = ({ channels, connecting, onConnect }: AvailablePr
 
   return (
     <div className="space-y-4 mb-6">
-      <h2 className="text-lg font-semibold text-main">Canaux disponibles</h2>
-      
       {availableProviders.map((provider) => {
         const isConnected = connectedProviderIds.includes(provider.id);
         const isConnecting = connecting === provider.id;
@@ -79,10 +69,6 @@ const AvailableProvidersList = ({ channels, connecting, onConnect }: AvailablePr
                   {isConnected ? (
                     <Badge className="bg-status-success text-white">
                       Connecté
-                    </Badge>
-                  ) : provider.disabled ? (
-                    <Badge variant="secondary" className="bg-gray-200 text-gray-600">
-                      Bientôt
                     </Badge>
                   ) : (
                     <Button

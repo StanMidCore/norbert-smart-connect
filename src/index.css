@@ -1,139 +1,62 @@
 
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
-
-@layer base {
-  :root {
-    --background: 0 0% 95.1%; /* #F2F2F2 */
-    --foreground: 0 0% 16.9%; /* #2B2B2B */
-
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 16.9%; /* #2B2B2B */
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 16.9%; /* #2B2B2B */
-
-    --primary: 28 96% 54%; /* #F7931E orange */
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 0 0% 16.9%; /* #2B2B2B */
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 0 0% 16.9%; /* #2B2B2B */
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 28 96% 54%; /* #F7931E orange */
-
-    --radius: 0.5rem;
-
-    /* Custom colors for the app */
-    --app-background: 0 0% 95.1%; /* #F2F2F2 */
-    --header-background: 207 58% 25%; /* #1A3C64 */
-    --header-foreground: 0 0% 100%;
-    --cta-button: 28 96% 54%; /* #F7931E */
-    --text-main: 0 0% 16.9%; /* #2B2B2B */
-    --status-success: 140 57% 48%; /* #3CB878 */
-    --alert-color: 28 96% 54%; /* #F7931E */
-  }
-
-  .dark {
-    --background: 0 0% 16.9%; /* #2B2B2B */
-    --foreground: 0 0% 95.1%; /* #F2F2F2 */
-
-    --card: 0 0% 16.9%; /* #2B2B2B */
-    --card-foreground: 0 0% 95.1%; /* #F2F2F2 */
-
-    --popover: 0 0% 16.9%; /* #2B2B2B */
-    --popover-foreground: 0 0% 95.1%; /* #F2F2F2 */
-
-    --primary: 28 96% 54%; /* #F7931E orange */
-    --primary-foreground: 0 0% 16.9%; /* #2B2B2B */
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 0 0% 95.1%; /* #F2F2F2 */
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 0 0% 95.1%; /* #F2F2F2 */
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 95.1%; /* #F2F2F2 */
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 28 96% 54%; /* #F7931E orange */
-
-    /* Custom colors for the app in dark mode */
-    --app-background: 0 0% 16.9%; /* #2B2B2B */
-    --header-background: 207 58% 20%; /* darker blue */
-    --header-foreground: 0 0% 95.1%; /* #F2F2F2 */
-    --cta-button: 28 96% 54%; /* #F7931E */
-    --text-main: 0 0% 95.1%; /* #F2F2F2 */
-    --status-success: 140 57% 48%; /* #3CB878 */
-    --alert-color: 28 96% 54%; /* #F7931E */
-  }
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
 }
 
 @layer base {
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground;
-    background-color: hsl(var(--app-background));
-    color: hsl(var(--text-main));
+    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: "Inter", sans-serif;
   }
 }
 
-/* Custom utility classes */
 @layer utilities {
-  .bg-app {
-    background-color: hsl(var(--app-background));
+  .pt-safe-offset-12 {
+    padding-top: max(3rem, calc(3rem + var(--safe-area-inset-top)));
   }
   
-  .bg-header {
-    background-color: hsl(var(--header-background));
+  .pt-safe-offset-16 {
+    padding-top: max(4rem, calc(4rem + var(--safe-area-inset-top)));
   }
   
-  .text-header {
-    color: hsl(var(--header-foreground));
+  .pb-safe-offset-6 {
+    padding-bottom: max(1.5rem, calc(1.5rem + var(--safe-area-inset-bottom)));
   }
-  
-  .bg-cta {
-    background-color: hsl(var(--cta-button));
+}
+
+@layer components {
+  .animate-accordion-down {
+    animation: accordion-down 0.2s ease-out;
   }
-  
-  .text-main {
-    color: hsl(var(--text-main));
+  .animate-accordion-up {
+    animation: accordion-up 0.2s ease-out;
   }
-  
-  .bg-status-success {
-    background-color: hsl(var(--status-success));
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
   }
-  
-  .text-status-success {
-    color: hsl(var(--status-success));
+  to {
+    height: var(--radix-accordion-content-height);
   }
-  
-  .bg-alert {
-    background-color: hsl(var(--alert-color));
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
   }
-  
-  .text-alert {
-    color: hsl(var(--alert-color));
+  to {
+    height: 0;
   }
 }

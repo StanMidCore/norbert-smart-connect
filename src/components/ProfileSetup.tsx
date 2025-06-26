@@ -115,7 +115,7 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-app-bg p-4">
+    <div className="min-h-screen bg-app-bg p-4 pt-safe-offset-16 sm:pt-4">
       <div className="max-w-md mx-auto space-y-6">
         {/* Header */}
         <div className="text-center">
@@ -127,31 +127,6 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
             Ces informations permettront à Norbert de répondre comme vous
           </p>
         </div>
-
-        {/* Configuration N8N Webhook */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-main text-lg">
-              <Zap className="h-5 w-5" />
-              Webhook N8N (optionnel)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div>
-              <Label htmlFor="webhook" className="text-main">URL du webhook N8N</Label>
-              <Input
-                id="webhook"
-                value={webhookUrl}
-                onChange={(e) => setWebhookUrl(e.target.value)}
-                className="border-gray-200 mt-2"
-                placeholder="https://votre-n8n.com/webhook/profil"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Laissez vide si vous n'avez pas configuré N8N
-              </p>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Votre activité */}
         <Card>
@@ -281,7 +256,7 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
         </div>
 
         {/* Action Buttons */}
-        <div className="space-y-3">
+        <div className="space-y-3 pb-safe-offset-6">
           <Button 
             onClick={handleComplete}
             disabled={loading}
@@ -300,7 +275,7 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
           <Button 
             onClick={handleGoToDashboard}
             variant="outline"
-            className="w-full py-6 text-lg border-main text-main hover:bg-main hover:text-white"
+            className="w-full py-6 text-lg border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white"
           >
             Accéder au Dashboard
             <ArrowRight className="ml-2 h-5 w-5" />

@@ -55,7 +55,7 @@ const ChannelSetupLayout = ({
   }
 
   return (
-    <div className="min-h-screen bg-app-bg p-4">
+    <div className="min-h-screen bg-app-bg p-4 pt-safe-offset-16 sm:pt-4">
       <div className="max-w-md mx-auto">
         <ChannelSetupHeader userEmail={user.email} />
 
@@ -81,13 +81,15 @@ const ChannelSetupLayout = ({
           onConnect={onConnect}
         />
 
-        <ChannelSetupActions
-          connectedChannelsCount={connectedChannelsCount}
-          onComplete={onComplete}
-          onRefresh={onRefresh}
-          onCleanup={onCleanup}
-          isRefreshing={isRefreshing}
-        />
+        <div className="pb-safe-offset-6">
+          <ChannelSetupActions
+            connectedChannelsCount={connectedChannelsCount}
+            onComplete={onComplete}
+            onRefresh={onRefresh}
+            onCleanup={onCleanup}
+            isRefreshing={isRefreshing}
+          />
+        </div>
       </div>
     </div>
   );
