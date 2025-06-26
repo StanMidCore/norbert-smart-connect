@@ -6,7 +6,8 @@ export interface ToastFunction {
 export class WindowMonitor {
   private checkWindowInterval: NodeJS.Timeout | null = null;
   private messageListener: ((event: MessageEvent) => void) | null = null;
-  private readonly MAX_CHECKS = 30; // Réduire à 30 secondes
+  private closeListener: ((event: Event) => void) | null = null;
+  private readonly MAX_CHECKS = 60; // Augmenté à 60 secondes
 
   startMonitoring(
     authWindow: Window,
@@ -18,13 +19,14 @@ export class WindowMonitor {
       clearInterval(this.checkWindowInterval);
     }
 
+    // Nettoyer les anciens listeners
     if (this.messageListener) {
       window.removeEventListener('message', this.messageListener);
     }
 
     console.log(`🔍 Début surveillance fenêtre ${provider}`);
     let checkCount = 0;
-    let hasProcessedCallback = false;
+    let connectionDetected = false;
 
     // Écouter les messages de la popup OAuth
     this.messageListener = (event: MessageEvent) => {
@@ -33,12 +35,14 @@ export class WindowMonitor {
       if (event.data?.type === 'oauth-callback') {
         const { connection, provider: callbackProvider, success } = event.data;
         
-        if (callbackProvider === provider && !hasProcessedCallback) {
+        if (callbackProvider === provider) {
           console.log(`🎯 Callback OAuth reçu pour ${provider}:`, { connection, success });
-          hasProcessedCallback = true;
+          connectionDetected = true;
           
+          // Nettoyer la surveillance
           this.cleanup();
           
+          // Fermer la fenêtre si elle n'est pas déjà fermée
           if (authWindow && !authWindow.closed) {
             try {
               authWindow.close();
@@ -47,79 +51,113 @@ export class WindowMonitor {
             }
           }
           
-          // Toujours appeler onComplete pour déclencher le polling
+          if (success) {
+            onToast({
+              title: "Connexion réussie",
+              description: `Votre compte ${provider} a été connecté avec succès`,
+            });
+          } else {
+            onToast({
+              title: "Échec de la connexion",
+              description: `Impossible de connecter votre compte ${provider}`,
+              variant: "destructive",
+            });
+          }
+
+          // TOUJOURS actualiser après un callback
           setTimeout(() => {
-            console.log(`🔄 Déclenchement polling après callback ${provider}`);
+            console.log(`🔄 Actualisation forcée après callback ${provider}`);
             onComplete();
-          }, 500);
+          }, 2000);
         }
-      } else if (event.data?.type === 'oauth-manual-close' && !hasProcessedCallback) {
+      } else if (event.data?.type === 'oauth-manual-close') {
         console.log(`🔒 Fermeture manuelle détectée pour ${provider}`);
-        hasProcessedCallback = true;
+        connectionDetected = true;
         this.cleanup();
         
+        // Actualiser même après fermeture manuelle
         setTimeout(() => {
-          console.log(`🔄 Déclenchement polling après fermeture manuelle ${provider}`);
+          console.log(`🔄 Actualisation après fermeture manuelle ${provider}`);
           onComplete();
-        }, 500);
+        }, 2000);
       }
     };
 
+    // Ajouter l'écouteur de messages
     window.addEventListener('message', this.messageListener);
 
-    // Surveillance de la fenêtre
+    // Surveillance traditionnelle de la fenêtre
     const checkWindow = () => {
       checkCount++;
       
       try {
-        if (authWindow.closed && !hasProcessedCallback) {
+        // Vérifier si la fenêtre est fermée
+        if (authWindow.closed) {
           console.log(`🔒 Fenêtre ${provider} fermée (check #${checkCount})`);
-          hasProcessedCallback = true;
           this.cleanup();
           
-          // Toujours déclencher le polling quand la fenêtre se ferme
+          // TOUJOURS synchroniser quand la fenêtre se ferme
+          console.log(`🔄 Synchronisation forcée après fermeture ${provider}`);
           setTimeout(() => {
-            console.log(`🔄 Déclenchement polling après fermeture ${provider}`);
             onComplete();
-          }, 500);
+          }, 1500);
           return;
         }
 
-        // Timeout après MAX_CHECKS
-        if (checkCount >= this.MAX_CHECKS) {
-          console.log(`⏰ Timeout surveillance ${provider}`);
-          
-          if (!hasProcessedCallback) {
-            hasProcessedCallback = true;
-            
-            try {
-              authWindow.close();
-            } catch (e) {
-              console.log('Erreur fermeture automatique:', e);
-            }
-            
+        // Vérifier l'URL de la fenêtre pour détecter les redirections
+        try {
+          const windowUrl = authWindow.location.href;
+          if (windowUrl && windowUrl.includes('oauth-callback')) {
+            console.log(`🔗 Détection redirect OAuth dans l'URL: ${windowUrl}`);
+            connectionDetected = true;
             this.cleanup();
             
+            // Forcer la synchronisation
             setTimeout(() => {
-              console.log(`🔄 Déclenchement polling après timeout ${provider}`);
+              console.log(`🔄 Synchronisation après détection URL ${provider}`);
               onComplete();
-            }, 500);
+            }, 1500);
+            return;
           }
+        } catch (urlError) {
+          // Normal si cross-origin, continuer la surveillance
+        }
+
+        // Fermeture automatique après timeout
+        if (checkCount >= this.MAX_CHECKS) {
+          console.log(`⏰ Fermeture automatique après ${this.MAX_CHECKS} secondes pour ${provider}`);
+          
+          try {
+            authWindow.close();
+          } catch (e) {
+            console.log('Erreur fermeture automatique:', e);
+          }
+          
+          this.cleanup();
+          
+          // Synchroniser après timeout
+          setTimeout(() => {
+            console.log(`🔄 Synchronisation après timeout ${provider}`);
+            onComplete();
+          }, 1500);
+          
           return;
         }
 
-        if (checkCount < this.MAX_CHECKS && !hasProcessedCallback) {
+        // Programmer la prochaine vérification
+        if (checkCount < this.MAX_CHECKS) {
           this.checkWindowInterval = setTimeout(checkWindow, 1000);
         }
 
       } catch (error) {
         console.log(`⚠️ Erreur surveillance ${provider}:`, error);
-        if (checkCount < this.MAX_CHECKS && !hasProcessedCallback) {
+        if (checkCount < this.MAX_CHECKS && !connectionDetected) {
           this.checkWindowInterval = setTimeout(checkWindow, 1000);
         }
       }
     };
 
+    // Démarrer la surveillance immédiatement
     this.checkWindowInterval = setTimeout(checkWindow, 1000);
   }
 
@@ -132,6 +170,11 @@ export class WindowMonitor {
     if (this.messageListener) {
       window.removeEventListener('message', this.messageListener);
       this.messageListener = null;
+    }
+
+    if (this.closeListener) {
+      window.removeEventListener('beforeunload', this.closeListener);
+      this.closeListener = null;
     }
   }
 }

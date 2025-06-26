@@ -14,11 +14,11 @@ export const useChannelSetup = () => {
   const [connecting, setConnecting] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [hasLoadedAccounts, setHasLoadedAccounts] = useState(false);
   const fetchingRef = useRef(false);
   const oauthManagerRef = useRef(new OAuthWindowManager());
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialiser l'utilisateur au chargement
+  // Initialiser l'utilisateur au chargement - une seule fois
   useEffect(() => {
     if (!user && !hasInitialized) {
       console.log('🔄 Initialisation utilisateur...');
@@ -27,12 +27,12 @@ export const useChannelSetup = () => {
     }
   }, [user, getCurrentUser, hasInitialized]);
 
-  // Récupérer les comptes au démarrage
+  // Récupérer les comptes une seule fois quand l'utilisateur est disponible
   const fetchAccountsOnce = useCallback(async () => {
-    if (user && !fetchingRef.current && !loading) {
-      console.log('📡 RÉCUPÉRATION des comptes pour:', user.email);
+    if (user && !fetchingRef.current && !loading && !hasLoadedAccounts) {
+      console.log('📡 Récupération des comptes pour:', user.email);
       fetchingRef.current = true;
-      
+      setHasLoadedAccounts(true);
       try {
         await fetchAccounts();
         console.log('✅ Comptes récupérés avec succès');
@@ -42,69 +42,11 @@ export const useChannelSetup = () => {
         fetchingRef.current = false;
       }
     }
-  }, [user, fetchAccounts, loading]);
+  }, [user, fetchAccounts, loading, hasLoadedAccounts]);
 
   useEffect(() => {
-    if (user) {
-      fetchAccountsOnce();
-    }
-  }, [user, fetchAccountsOnce]);
-
-  // Système de polling pour OAuth (Gmail, Outlook, Facebook)
-  const startPollingForNewAccounts = useCallback((provider: string) => {
-    console.log(`🔄 Démarrage polling pour ${provider}`);
-    let pollCount = 0;
-    const maxPolls = 20; // 20 tentatives sur 40 secondes
-    
-    const pollForAccounts = async () => {
-      pollCount++;
-      console.log(`🔍 Polling ${provider} - tentative ${pollCount}/${maxPolls}`);
-      
-      try {
-        await fetchAccounts();
-        
-        // Vérifier si le nouveau compte est disponible
-        const hasNewAccount = channels.some(ch => 
-          ch.channel_type.toLowerCase() === provider.toLowerCase() && 
-          ch.status === 'connected'
-        );
-        
-        if (hasNewAccount) {
-          console.log(`✅ Nouveau compte ${provider} détecté!`);
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-          
-          toast({
-            title: "Connexion réussie",
-            description: `Votre compte ${provider} a été connecté avec succès`,
-          });
-          
-          setConnecting(null);
-          return;
-        }
-        
-        // Arrêter le polling après le nombre max de tentatives
-        if (pollCount >= maxPolls) {
-          console.log(`⏰ Polling ${provider} terminé sans succès`);
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-          setConnecting(null);
-        }
-      } catch (error) {
-        console.error(`❌ Erreur polling ${provider}:`, error);
-      }
-    };
-    
-    // Démarrer le polling toutes les 2 secondes
-    pollingIntervalRef.current = setInterval(pollForAccounts, 2000);
-    
-    // Première vérification immédiate
-    setTimeout(pollForAccounts, 1000);
-  }, [channels, fetchAccounts, toast]);
+    fetchAccountsOnce();
+  }, [fetchAccountsOnce]);
 
   // Normaliser les canaux connectés
   useEffect(() => {
@@ -130,9 +72,6 @@ export const useChannelSetup = () => {
   useEffect(() => {
     return () => {
       oauthManagerRef.current.cleanup();
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
     };
   }, []);
 
@@ -149,12 +88,6 @@ export const useChannelSetup = () => {
     setConnecting(provider);
     setQrCode(null);
     
-    // Arrêter le polling précédent s'il existe
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-    
     try {
       console.log(`🔌 Tentative de connexion ${provider}...`);
       const result = await connectAccount(provider);
@@ -163,7 +96,7 @@ export const useChannelSetup = () => {
       
       if (result.qr_code) {
         // Pour WhatsApp, afficher le QR code
-        console.log('📱 QR Code WhatsApp reçu');
+        console.log('📱 QR Code WhatsApp reçu, longueur:', result.qr_code.length);
         setQrCode(result.qr_code);
         setConnecting(null);
         toast({
@@ -171,17 +104,24 @@ export const useChannelSetup = () => {
           description: "Scannez le QR code avec WhatsApp pour connecter votre compte",
         });
       } else if (result.authorization_url) {
-        // Pour OAuth, utiliser le gestionnaire de fenêtre + polling
+        // Pour OAuth, utiliser le gestionnaire de fenêtre
         console.log('🔗 URL d\'autorisation reçue pour', provider);
         
+        // Ajouter un délai pour éviter le blocage immédiat
         setTimeout(() => {
           const authWindow = oauthManagerRef.current.openAuthWindow(result.authorization_url, provider);
           
           if (authWindow) {
             const handleComplete = () => {
-              console.log(`🔄 Fenêtre fermée pour ${provider}, démarrage polling`);
-              // Démarrer le polling pour détecter le nouveau compte
-              startPollingForNewAccounts(provider);
+              console.log(`🔄 Début actualisation après OAuth ${provider}`);
+              setConnecting(null);
+              setHasLoadedAccounts(false);
+              
+              // Forcer l'actualisation avec un délai plus long
+              setTimeout(() => {
+                console.log(`🔄 Exécution actualisation ${provider}`);
+                fetchAccountsOnce();
+              }, 3000);
             };
 
             oauthManagerRef.current.startWindowMonitoring(authWindow, provider, handleComplete, toast);
@@ -212,7 +152,12 @@ export const useChannelSetup = () => {
           title: "Connexion réussie",
           description: `Votre compte ${provider} a été connecté`,
         });
-        fetchAccountsOnce();
+        if (!fetchingRef.current) {
+          setHasLoadedAccounts(false);
+          setTimeout(() => {
+            fetchAccountsOnce();
+          }, 2000);
+        }
       }
     } catch (error) {
       console.error('❌ Erreur connexion:', error);
@@ -238,15 +183,9 @@ export const useChannelSetup = () => {
 
   const handleRefreshAccounts = async () => {
     if (fetchingRef.current) return;
-    console.log('🔄 ACTUALISATION MANUELLE des comptes...');
+    console.log('🔄 Actualisation manuelle des comptes...');
     setConnecting(null);
-    
-    // Arrêter le polling s'il est actif
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-    
+    setHasLoadedAccounts(false);
     await fetchAccountsOnce();
   };
 
