@@ -99,12 +99,25 @@ export const useChannelData = () => {
   const handleRefreshAccounts = useCallback(async () => {
     if (fetchingRef.current) return;
     console.log('🔄 Actualisation manuelle des comptes...');
+    
+    // Réinitialiser l'état de chargement
     setHasLoadedAccounts(false);
-    await fetchAccountsOnce();
+    fetchingRef.current = false;
+    
+    // Attendre un peu avant de relancer
+    setTimeout(() => {
+      fetchAccountsOnce();
+    }, 500);
   }, [fetchAccountsOnce]);
 
   const forceRefresh = useCallback(() => {
+    console.log('🔄 Actualisation forcée des comptes...');
+    
+    // Réinitialiser complètement l'état
     setHasLoadedAccounts(false);
+    fetchingRef.current = false;
+    
+    // Actualiser immédiatement
     setTimeout(() => {
       fetchAccountsOnce();
     }, 1000);
