@@ -99,10 +99,24 @@ serve(async (req) => {
       }
 
       const unipileAccounts = await response.json();
-      console.log('Comptes Unipile récupérés:', unipileAccounts?.length || 0);
+      console.log('Comptes Unipile bruts récupérés:', JSON.stringify(unipileAccounts, null, 2));
+      console.log('Nombre de comptes récupérés:', unipileAccounts?.length || 0);
 
       // S'assurer que unipileAccounts est un tableau
       const accountsArray = Array.isArray(unipileAccounts) ? unipileAccounts : [];
+
+      // Log détaillé de chaque compte pour débugger
+      accountsArray.forEach((account, index) => {
+        console.log(`Compte ${index + 1}:`, {
+          id: account.id,
+          provider: account.provider,
+          identifier: account.identifier,
+          name: account.name,
+          is_active: account.is_active,
+          status: account.status,
+          connected: account.connected
+        });
+      });
 
       // Supprimer tous les anciens canaux locaux
       await supabase
@@ -110,11 +124,23 @@ serve(async (req) => {
         .delete()
         .eq('user_id', user.id);
 
-      // Synchroniser avec notre base de données - créer uniquement les comptes actifs
+      // Synchroniser avec notre base de données - accepter les comptes connectés même s'ils ne sont pas marqués comme "active"
+      const validAccounts = [];
+      
       if (accountsArray.length > 0) {
         for (const account of accountsArray) {
-          if (account.is_active) {
-            console.log(`Synchronisation compte actif: ${account.provider} - ${account.id}`);
+          // Accepter les comptes qui sont soit actifs, soit connectés, soit qui ont un statut valide
+          const isValidAccount = account.is_active || 
+                                 account.connected || 
+                                 account.status === 'connected' ||
+                                 account.status === 'active' ||
+                                 // Fallback: accepter tous les comptes si on ne peut pas déterminer le statut
+                                 (!account.hasOwnProperty('is_active') && !account.hasOwnProperty('connected'));
+          
+          if (isValidAccount) {
+            console.log(`✅ Synchronisation compte valide: ${account.provider} - ${account.id}`);
+            validAccounts.push(account);
+            
             await supabase
               .from('channels')
               .insert({
@@ -130,15 +156,26 @@ serve(async (req) => {
                 }
               });
           } else {
-            console.log(`Compte inactif ignoré: ${account.provider} - ${account.id}`);
+            console.log(`❌ Compte ignoré (inactif): ${account.provider} - ${account.id}`, {
+              is_active: account.is_active,
+              connected: account.connected,
+              status: account.status
+            });
           }
         }
       }
 
+      console.log(`📊 Résumé: ${validAccounts.length}/${accountsArray.length} comptes synchronisés`);
+
       return new Response(JSON.stringify({ 
         success: true,
-        accounts: accountsArray.filter(acc => acc.is_active), // Retourner seulement les comptes actifs
-        norbert_channels: []
+        accounts: validAccounts,
+        norbert_channels: [],
+        debug_info: {
+          total_accounts: accountsArray.length,
+          valid_accounts: validAccounts.length,
+          raw_accounts: accountsArray
+        }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
