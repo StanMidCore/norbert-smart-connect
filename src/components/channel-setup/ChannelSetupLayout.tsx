@@ -4,7 +4,6 @@ import { Loader2 } from 'lucide-react';
 import ChannelSetupHeader from './ChannelSetupHeader';
 import ErrorDisplay from './ErrorDisplay';
 import QRCodeDialog from './QRCodeDialog';
-import ConnectedChannelsList from './ConnectedChannelsList';
 import AvailableProvidersList from './AvailableProvidersList';
 import ChannelSetupActions from './ChannelSetupActions';
 import type { UnipileChannel } from '@/hooks/useUnipile';
@@ -75,8 +74,6 @@ const ChannelSetupLayout = ({
           onRegenerate={onQRRegenerate}
           onError={onQRError}
         />
-
-        <ConnectedChannelsList channels={channels} />
 
         <AvailableProvidersList
           channels={channels}

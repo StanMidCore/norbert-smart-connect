@@ -26,11 +26,12 @@ export const useChannelData = () => {
 
   // Récupérer les comptes une seule fois quand l'utilisateur est disponible
   const fetchAccountsOnce = useCallback(async () => {
-    if (user && !fetchingRef.current && !loading) {
+    if (user && !fetchingRef.current && !loading && !hasLoadedAccounts) {
       console.log('📡 Récupération des comptes pour:', user.email);
       fetchingRef.current = true;
       try {
         await fetchAccounts();
+        setHasLoadedAccounts(true);
         console.log('✅ Comptes récupérés avec succès');
       } catch (err) {
         console.error('❌ Erreur récupération comptes:', err);
@@ -38,14 +39,11 @@ export const useChannelData = () => {
         fetchingRef.current = false;
       }
     }
-  }, [user, fetchAccounts, loading]);
+  }, [user, fetchAccounts, loading, hasLoadedAccounts]);
 
   useEffect(() => {
-    if (!hasLoadedAccounts) {
-      fetchAccountsOnce();
-      setHasLoadedAccounts(true);
-    }
-  }, [fetchAccountsOnce, hasLoadedAccounts]);
+    fetchAccountsOnce();
+  }, [fetchAccountsOnce]);
 
   // Normaliser les canaux connectés
   useEffect(() => {
@@ -80,11 +78,9 @@ export const useChannelData = () => {
         description: `${data.channels_before} → ${data.channels_after} canaux`,
       });
       
-      // Forcer le rechargement
+      // Forcer le rechargement une seule fois
       setHasLoadedAccounts(false);
-      setTimeout(() => {
-        fetchAccountsOnce();
-      }, 1000);
+      fetchingRef.current = false;
       
     } catch (error) {
       console.error('❌ Erreur nettoyage:', error);
@@ -94,7 +90,7 @@ export const useChannelData = () => {
         variant: "destructive",
       });
     }
-  }, [toast, fetchAccountsOnce]);
+  }, [toast]);
 
   const handleRefreshAccounts = useCallback(async () => {
     if (fetchingRef.current) return;
@@ -104,11 +100,7 @@ export const useChannelData = () => {
     setHasLoadedAccounts(false);
     fetchingRef.current = false;
     
-    // Attendre un peu avant de relancer
-    setTimeout(() => {
-      fetchAccountsOnce();
-    }, 500);
-  }, [fetchAccountsOnce]);
+  }, []);
 
   const forceRefresh = useCallback(() => {
     console.log('🔄 Actualisation forcée des comptes...');
@@ -117,11 +109,7 @@ export const useChannelData = () => {
     setHasLoadedAccounts(false);
     fetchingRef.current = false;
     
-    // Actualiser immédiatement
-    setTimeout(() => {
-      fetchAccountsOnce();
-    }, 1000);
-  }, [fetchAccountsOnce]);
+  }, []);
 
   return {
     user,

@@ -53,32 +53,13 @@ export const useChannelConnection = (onConnectionComplete: () => void) => {
         // Ajouter un délai pour éviter le blocage immédiat
         setTimeout(() => {
           const handleComplete = async () => {
-            console.log(`🔄 Actualisation après OAuth ${provider}`);
+            console.log(`✅ Connexion OAuth ${provider} réussie`);
             setConnecting(null);
             
-            // Actualisation avec plusieurs tentatives et délais progressifs
-            const maxRetries = 5;
-            let attempt = 0;
-            
-            const tryRefresh = async () => {
-              attempt++;
-              console.log(`🔄 Tentative d'actualisation ${attempt}/${maxRetries} pour ${provider}`);
-              
-              // Délai progressif : 2s, 4s, 6s, 8s, 10s
-              const delay = attempt * 2000;
-              
-              setTimeout(async () => {
-                onConnectionComplete();
-                
-                // Si ce n'est pas la dernière tentative, programmer la suivante
-                if (attempt < maxRetries) {
-                  tryRefresh();
-                }
-              }, delay);
-            };
-            
-            // Commencer les tentatives d'actualisation
-            tryRefresh();
+            // Une seule actualisation après un délai
+            setTimeout(() => {
+              onConnectionComplete();
+            }, 2000);
           };
 
           const success = openAuthWindow(result.authorization_url, provider, handleComplete, toast);
@@ -110,7 +91,7 @@ export const useChannelConnection = (onConnectionComplete: () => void) => {
           title: "Connexion réussie",
           description: `Votre compte ${provider} a été connecté`,
         });
-        // Actualisation immédiate après succès
+        // Actualisation unique après succès
         setTimeout(() => {
           onConnectionComplete();
         }, 1000);
