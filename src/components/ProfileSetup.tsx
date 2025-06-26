@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, User, Building2, MessageSquare, Zap, Globe, Clock, Euro } from 'lucide-react';
+import { Loader2, User, Building2, MessageSquare, Zap, Globe, Clock, Euro, ArrowRight } from 'lucide-react';
 
 interface ProfileSetupProps {
   onComplete: () => void;
@@ -26,6 +26,7 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
   });
   
   const [loading, setLoading] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState('');
   const { toast } = useToast();
 
   const handleInputChange = (field: string, value: string) => {
@@ -35,18 +36,81 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
     }));
   };
 
+  const sendToN8NWebhook = async (profileData: typeof formData) => {
+    if (!webhookUrl.trim()) {
+      console.log('Aucun webhook N8N configuré, profil sauvegardé localement seulement');
+      return;
+    }
+
+    try {
+      const webhookData = {
+        type: 'profile_update',
+        timestamp: new Date().toISOString(),
+        user: {
+          name: profileData.name,
+          company: profileData.company,
+          position: profileData.position
+        },
+        business: {
+          activity: profileData.activity,
+          website: profileData.website,
+          services: profileData.services,
+          availability: profileData.availability,
+          pricing: profileData.pricing
+        },
+        source: 'norbert_app'
+      };
+
+      console.log('Envoi des données de profil vers N8N:', webhookData);
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        mode: 'no-cors',
+        body: JSON.stringify(webhookData),
+      });
+
+      console.log('Données de profil envoyées vers N8N avec succès');
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi vers N8N:', error);
+      toast({
+        title: "Avertissement",
+        description: "Profil sauvegardé mais échec de synchronisation avec N8N",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleComplete = async () => {
     setLoading(true);
     
-    // Simuler une sauvegarde
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    toast({
-      title: "Profil configuré",
-      description: "Votre profil IA a été sauvegardé avec succès",
-    });
-    
-    setLoading(false);
+    try {
+      // Envoyer les données vers N8N
+      await sendToN8NWebhook(formData);
+      
+      // Simuler une sauvegarde locale
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      toast({
+        title: "Profil configuré",
+        description: "Votre profil IA a été sauvegardé et synchronisé avec succès",
+      });
+      
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde:', error);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de la sauvegarde du profil",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoToDashboard = () => {
     onComplete();
   };
 
@@ -63,6 +127,31 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
             Ces informations permettront à Norbert de répondre comme vous
           </p>
         </div>
+
+        {/* Configuration N8N Webhook */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-main text-lg">
+              <Zap className="h-5 w-5" />
+              Webhook N8N (optionnel)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div>
+              <Label htmlFor="webhook" className="text-main">URL du webhook N8N</Label>
+              <Input
+                id="webhook"
+                value={webhookUrl}
+                onChange={(e) => setWebhookUrl(e.target.value)}
+                className="border-gray-200 mt-2"
+                placeholder="https://votre-n8n.com/webhook/profil"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Laissez vide si vous n'avez pas configuré N8N
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Votre activité */}
         <Card>
@@ -191,21 +280,32 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
           </Card>
         </div>
 
-        {/* Action Button */}
-        <Button 
-          onClick={handleComplete}
-          disabled={loading}
-          className="w-full bg-main hover:bg-main/90 text-white py-6 text-lg"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Configuration en cours...
-            </>
-          ) : (
-            'Finaliser la configuration'
-          )}
-        </Button>
+        {/* Action Buttons */}
+        <div className="space-y-3">
+          <Button 
+            onClick={handleComplete}
+            disabled={loading}
+            className="w-full bg-main hover:bg-main/90 text-white py-6 text-lg"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Sauvegarde en cours...
+              </>
+            ) : (
+              'Sauvegarder le profil'
+            )}
+          </Button>
+
+          <Button 
+            onClick={handleGoToDashboard}
+            variant="outline"
+            className="w-full py-6 text-lg border-main text-main hover:bg-main hover:text-white"
+          >
+            Accéder au Dashboard
+            <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
+        </div>
       </div>
     </div>
   );
