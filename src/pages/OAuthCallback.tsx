@@ -22,11 +22,11 @@ const OAuthCallback = () => {
       console.log('📤 Envoi du message à la fenêtre parent:', message);
       window.opener.postMessage(message, '*');
       
-      // Attendre un peu avant de fermer pour s'assurer que le message est reçu
+      // Fermer immédiatement après envoi du message
       setTimeout(() => {
-        console.log('🔒 Fermeture automatique de la popup');
+        console.log('🔒 Fermeture automatique immédiate de la popup');
         window.close();
-      }, 1000);
+      }, 200);
       
     } else {
       // Fallback si pas de fenêtre parent (redirection directe)
@@ -46,28 +46,11 @@ const OAuthCallback = () => {
       }
     };
 
-    // Ajouter un écouteur pour le clic sur le bouton "Close" de Google
-    const handleVisibilityChange = () => {
-      if (document.hidden && window.opener) {
-        console.log('👁️ Page masquée, possiblement fermée par l\'utilisateur');
-        setTimeout(() => {
-          if (window.opener && !window.closed) {
-            window.opener.postMessage({
-              type: 'oauth-manual-close',
-              provider
-            }, '*');
-          }
-        }, 500);
-      }
-    };
-
     window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     // Nettoyer les écouteurs
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
@@ -75,15 +58,8 @@ const OAuthCallback = () => {
     <div className="min-h-screen bg-app-bg flex items-center justify-center p-4">
       <div className="text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-main mx-auto mb-4"></div>
-        <p className="text-main">Connexion en cours...</p>
+        <p className="text-main">Connexion réussie !</p>
         <p className="text-sm text-gray-600 mt-2">Cette fenêtre va se fermer automatiquement...</p>
-        
-        <button 
-          onClick={() => window.close()} 
-          className="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-        >
-          Fermer manuellement
-        </button>
       </div>
     </div>
   );

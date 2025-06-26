@@ -30,10 +30,9 @@ export const useChannelSetup = () => {
 
   // Récupérer les comptes une seule fois quand l'utilisateur est disponible
   const fetchAccountsOnce = useCallback(async () => {
-    if (user && !fetchingRef.current && !loading && !hasLoadedAccounts) {
+    if (user && !fetchingRef.current && !loading) {
       console.log('📡 Récupération des comptes pour:', user.email);
       fetchingRef.current = true;
-      setHasLoadedAccounts(true);
       try {
         await fetchAccounts();
         console.log('✅ Comptes récupérés avec succès');
@@ -43,11 +42,14 @@ export const useChannelSetup = () => {
         fetchingRef.current = false;
       }
     }
-  }, [user, fetchAccounts, loading, hasLoadedAccounts]);
+  }, [user, fetchAccounts, loading]);
 
   useEffect(() => {
-    fetchAccountsOnce();
-  }, [fetchAccountsOnce]);
+    if (!hasLoadedAccounts) {
+      fetchAccountsOnce();
+      setHasLoadedAccounts(true);
+    }
+  }, [fetchAccountsOnce, hasLoadedAccounts]);
 
   // Normaliser les canaux connectés
   useEffect(() => {
@@ -150,15 +152,15 @@ export const useChannelSetup = () => {
           
           if (authWindow) {
             const handleComplete = () => {
-              console.log(`🔄 Début actualisation après OAuth ${provider}`);
+              console.log(`🔄 Actualisation après OAuth ${provider}`);
               setConnecting(null);
-              setHasLoadedAccounts(false);
               
-              // Forcer l'actualisation avec un délai plus long
+              // Actualisation immédiate et fiable
               setTimeout(() => {
                 console.log(`🔄 Exécution actualisation ${provider}`);
+                setHasLoadedAccounts(false);
                 fetchAccountsOnce();
-              }, 3000);
+              }, 1000);
             };
 
             oauthManagerRef.current.startWindowMonitoring(authWindow, provider, handleComplete, toast);
@@ -189,12 +191,11 @@ export const useChannelSetup = () => {
           title: "Connexion réussie",
           description: `Votre compte ${provider} a été connecté`,
         });
-        if (!fetchingRef.current) {
+        // Actualisation immédiate après succès
+        setTimeout(() => {
           setHasLoadedAccounts(false);
-          setTimeout(() => {
-            fetchAccountsOnce();
-          }, 2000);
-        }
+          fetchAccountsOnce();
+        }, 1000);
       }
     } catch (error) {
       console.error('❌ Erreur connexion:', error);

@@ -7,7 +7,7 @@ export class WindowMonitor {
   private checkWindowInterval: NodeJS.Timeout | null = null;
   private messageListener: ((event: MessageEvent) => void) | null = null;
   private closeListener: ((event: Event) => void) | null = null;
-  private readonly MAX_CHECKS = 60; // Augmenté à 60 secondes
+  private readonly MAX_CHECKS = 120; // Augmenté à 2 minutes pour plus de flexibilité
 
   startMonitoring(
     authWindow: Window,
@@ -26,26 +26,27 @@ export class WindowMonitor {
 
     console.log(`🔍 Début surveillance fenêtre ${provider}`);
     let checkCount = 0;
-    let connectionDetected = false;
+    let connectionHandled = false;
 
     // Écouter les messages de la popup OAuth
     this.messageListener = (event: MessageEvent) => {
       console.log('📨 Message reçu de la popup:', event.data);
       
-      if (event.data?.type === 'oauth-callback') {
+      if (event.data?.type === 'oauth-callback' && !connectionHandled) {
         const { connection, provider: callbackProvider, success } = event.data;
         
         if (callbackProvider === provider) {
           console.log(`🎯 Callback OAuth reçu pour ${provider}:`, { connection, success });
-          connectionDetected = true;
+          connectionHandled = true;
           
           // Nettoyer la surveillance
           this.cleanup();
           
-          // Fermer la fenêtre si elle n'est pas déjà fermée
+          // Fermer la fenêtre immédiatement
           if (authWindow && !authWindow.closed) {
             try {
               authWindow.close();
+              console.log(`🔒 Fenêtre ${provider} fermée automatiquement`);
             } catch (e) {
               console.log('Fenêtre déjà fermée');
             }
@@ -56,30 +57,35 @@ export class WindowMonitor {
               title: "Connexion réussie",
               description: `Votre compte ${provider} a été connecté avec succès`,
             });
+            
+            // Actualisation immédiate après succès
+            console.log(`🔄 Actualisation immédiate après succès ${provider}`);
+            setTimeout(() => {
+              onComplete();
+            }, 500);
           } else {
             onToast({
               title: "Échec de la connexion",
               description: `Impossible de connecter votre compte ${provider}`,
               variant: "destructive",
             });
+            
+            // Actualisation même après échec pour nettoyer l'état
+            setTimeout(() => {
+              onComplete();
+            }, 1000);
           }
-
-          // TOUJOURS actualiser après un callback
-          setTimeout(() => {
-            console.log(`🔄 Actualisation forcée après callback ${provider}`);
-            onComplete();
-          }, 2000);
         }
-      } else if (event.data?.type === 'oauth-manual-close') {
+      } else if (event.data?.type === 'oauth-manual-close' && !connectionHandled) {
         console.log(`🔒 Fermeture manuelle détectée pour ${provider}`);
-        connectionDetected = true;
+        connectionHandled = true;
         this.cleanup();
         
-        // Actualiser même après fermeture manuelle
+        // Actualisation après fermeture manuelle
         setTimeout(() => {
           console.log(`🔄 Actualisation après fermeture manuelle ${provider}`);
           onComplete();
-        }, 2000);
+        }, 1000);
       }
     };
 
@@ -92,27 +98,37 @@ export class WindowMonitor {
       
       try {
         // Vérifier si la fenêtre est fermée
-        if (authWindow.closed) {
+        if (authWindow.closed && !connectionHandled) {
           console.log(`🔒 Fenêtre ${provider} fermée (check #${checkCount})`);
+          connectionHandled = true;
           this.cleanup();
           
           // TOUJOURS synchroniser quand la fenêtre se ferme
           console.log(`🔄 Synchronisation forcée après fermeture ${provider}`);
           setTimeout(() => {
             onComplete();
-          }, 1500);
+          }, 1000);
           return;
         }
 
         // Vérifier l'URL de la fenêtre pour détecter les redirections
         try {
           const windowUrl = authWindow.location.href;
-          if (windowUrl && windowUrl.includes('oauth-callback')) {
+          if (windowUrl && (windowUrl.includes('oauth-callback') || windowUrl.includes('connection=success')) && !connectionHandled) {
             console.log(`🔗 Détection redirect OAuth dans l'URL: ${windowUrl}`);
-            connectionDetected = true;
+            connectionHandled = true;
             this.cleanup();
             
-            // Forcer la synchronisation
+            // Fermer la fenêtre et actualiser
+            setTimeout(() => {
+              try {
+                authWindow.close();
+                console.log(`🔒 Fenêtre ${provider} fermée après détection URL`);
+              } catch (e) {
+                console.log('Erreur fermeture fenêtre:', e);
+              }
+            }, 500);
+            
             setTimeout(() => {
               console.log(`🔄 Synchronisation après détection URL ${provider}`);
               onComplete();
@@ -124,8 +140,9 @@ export class WindowMonitor {
         }
 
         // Fermeture automatique après timeout
-        if (checkCount >= this.MAX_CHECKS) {
+        if (checkCount >= this.MAX_CHECKS && !connectionHandled) {
           console.log(`⏰ Fermeture automatique après ${this.MAX_CHECKS} secondes pour ${provider}`);
+          connectionHandled = true;
           
           try {
             authWindow.close();
@@ -139,19 +156,19 @@ export class WindowMonitor {
           setTimeout(() => {
             console.log(`🔄 Synchronisation après timeout ${provider}`);
             onComplete();
-          }, 1500);
+          }, 1000);
           
           return;
         }
 
         // Programmer la prochaine vérification
-        if (checkCount < this.MAX_CHECKS) {
+        if (checkCount < this.MAX_CHECKS && !connectionHandled) {
           this.checkWindowInterval = setTimeout(checkWindow, 1000);
         }
 
       } catch (error) {
         console.log(`⚠️ Erreur surveillance ${provider}:`, error);
-        if (checkCount < this.MAX_CHECKS && !connectionDetected) {
+        if (checkCount < this.MAX_CHECKS && !connectionHandled) {
           this.checkWindowInterval = setTimeout(checkWindow, 1000);
         }
       }
