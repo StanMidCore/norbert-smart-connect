@@ -98,74 +98,76 @@ serve(async (req) => {
         });
       }
 
-      const unipileAccounts = await response.json();
-      console.log('Comptes Unipile bruts récupérés:', JSON.stringify(unipileAccounts, null, 2));
-      console.log('Nombre de comptes récupérés:', unipileAccounts?.length || 0);
+      const unipileResponse = await response.json();
+      console.log('Réponse Unipile brute:', JSON.stringify(unipileResponse, null, 2));
 
-      // S'assurer que unipileAccounts est un tableau
-      const accountsArray = Array.isArray(unipileAccounts) ? unipileAccounts : [];
+      // Extraire les comptes de la structure AccountList
+      let accountsArray = [];
+      if (unipileResponse && unipileResponse.items && Array.isArray(unipileResponse.items)) {
+        accountsArray = unipileResponse.items;
+      } else if (Array.isArray(unipileResponse)) {
+        // Fallback si c'est directement un tableau
+        accountsArray = unipileResponse;
+      }
+
+      console.log('Nombre de comptes extraits:', accountsArray.length);
 
       // Log détaillé de chaque compte pour débugger
       accountsArray.forEach((account, index) => {
         console.log(`Compte ${index + 1}:`, {
           id: account.id,
-          provider: account.provider,
-          identifier: account.identifier,
+          type: account.type,
           name: account.name,
-          is_active: account.is_active,
-          status: account.status,
-          connected: account.connected
+          created_at: account.created_at,
+          sources: account.sources
         });
       });
 
       // Supprimer tous les anciens canaux locaux
+      console.log('Suppression des anciens canaux...');
       await supabase
         .from('channels')
         .delete()
         .eq('user_id', user.id);
 
-      // Synchroniser avec notre base de données - accepter les comptes connectés même s'ils ne sont pas marqués comme "active"
+      // Synchroniser avec notre base de données
       const validAccounts = [];
       
       if (accountsArray.length > 0) {
         for (const account of accountsArray) {
-          // Accepter les comptes qui sont soit actifs, soit connectés, soit qui ont un statut valide
-          const isValidAccount = account.is_active || 
-                                 account.connected || 
-                                 account.status === 'connected' ||
-                                 account.status === 'active' ||
-                                 // Fallback: accepter tous les comptes si on ne peut pas déterminer le statut
-                                 (!account.hasOwnProperty('is_active') && !account.hasOwnProperty('connected'));
+          // Tous les comptes retournés par Unipile sont considérés comme valides
+          console.log(`✅ Synchronisation compte: ${account.type} - ${account.id}`);
+          validAccounts.push(account);
           
-          if (isValidAccount) {
-            console.log(`✅ Synchronisation compte valide: ${account.provider} - ${account.id}`);
-            validAccounts.push(account);
-            
-            await supabase
-              .from('channels')
-              .insert({
-                user_id: user.id,
-                channel_type: account.provider.toLowerCase(),
-                unipile_account_id: account.id,
-                status: 'connected',
-                connected_at: new Date().toISOString(),
-                provider_info: {
-                  provider: account.provider,
-                  identifier: account.identifier || account.name || account.id,
-                  name: account.name || `Compte ${account.provider}`
-                }
-              });
-          } else {
-            console.log(`❌ Compte ignoré (inactif): ${account.provider} - ${account.id}`, {
-              is_active: account.is_active,
-              connected: account.connected,
-              status: account.status
-            });
+          // Déterminer le type de canal basé sur le type Unipile
+          let channelType = 'email'; // par défaut
+          if (account.type === 'GOOGLE_OAUTH') {
+            channelType = 'gmail';
+          } else if (account.type === 'OUTLOOK') {
+            channelType = 'outlook';
+          } else if (account.type === 'WHATSAPP') {
+            channelType = 'whatsapp';
           }
+          
+          await supabase
+            .from('channels')
+            .insert({
+              user_id: user.id,
+              channel_type: channelType,
+              unipile_account_id: account.id,
+              status: 'connected',
+              connected_at: new Date().toISOString(),
+              provider_info: {
+                provider: account.type,
+                identifier: account.name || account.id,
+                name: account.name || `Compte ${account.type}`,
+                created_at: account.created_at
+              }
+            });
         }
       }
 
-      console.log(`📊 Résumé: ${validAccounts.length}/${accountsArray.length} comptes synchronisés`);
+      console.log(`📊 Résumé final: ${validAccounts.length} comptes synchronisés`);
 
       return new Response(JSON.stringify({ 
         success: true,
@@ -174,7 +176,8 @@ serve(async (req) => {
         debug_info: {
           total_accounts: accountsArray.length,
           valid_accounts: validAccounts.length,
-          raw_accounts: accountsArray
+          unipile_response_type: typeof unipileResponse,
+          has_items: !!unipileResponse?.items
         }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
