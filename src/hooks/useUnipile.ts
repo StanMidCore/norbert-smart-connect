@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -64,17 +63,34 @@ export const useUnipile = () => {
       const localChannels = Array.isArray(data.norbert_channels) ? data.norbert_channels : [];
       
       // Convertir les comptes Unipile en format channel pour l'affichage
-      const formattedChannels: UnipileChannel[] = realAccounts.map((account: any) => ({
-        id: account.id,
-        unipile_account_id: account.id,
-        channel_type: account.provider.toLowerCase(),
-        status: account.is_active ? 'connected' : 'disconnected',
-        provider_info: {
-          provider: account.provider,
-          identifier: account.identifier || account.name || account.id,
-          name: account.name || `Compte ${account.provider}`
+      const formattedChannels: UnipileChannel[] = realAccounts.map((account: any) => {
+        // Mapper les types Unipile vers nos types de canaux
+        let channelType = 'email'; // par défaut
+        let providerName = account.type || 'unknown';
+        
+        if (account.type === 'GOOGLE_OAUTH') {
+          channelType = 'gmail';
+          providerName = 'Gmail';
+        } else if (account.type === 'OUTLOOK') {
+          channelType = 'outlook';
+          providerName = 'Outlook';
+        } else if (account.type === 'WHATSAPP') {
+          channelType = 'whatsapp';
+          providerName = 'WhatsApp';
         }
-      }));
+
+        return {
+          id: account.id,
+          unipile_account_id: account.id,
+          channel_type: channelType,
+          status: 'connected', // Tous les comptes récupérés sont connectés
+          provider_info: {
+            provider: providerName,
+            identifier: account.name || account.id,
+            name: account.name || `Compte ${providerName}`
+          }
+        };
+      });
 
       // Si pas de comptes Unipile, utiliser les canaux locaux
       if (formattedChannels.length === 0) {
