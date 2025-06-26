@@ -22,6 +22,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     handleConnectProvider,
     handleRefreshAccounts,
     handleQRError,
+    handleCleanupChannels,
     setQrCode,
     fetchAccountsOnce
   } = useChannelSetup();
@@ -55,6 +56,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
         isRefreshing={fetchingRef.current}
         onConnect={handleConnectProvider}
         onRefresh={handleRefreshAccounts}
+        onCleanup={handleCleanupChannels}
         onComplete={onComplete}
         onQRClose={() => setQrCode(null)}
         onQRRegenerate={() => handleConnectProvider('whatsapp')}

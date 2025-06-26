@@ -5,6 +5,7 @@ import { useNorbertUser } from '@/hooks/useNorbertUser';
 import { useToast } from '@/hooks/use-toast';
 import type { Channel } from '@/types/norbert';
 import { OAuthWindowManager } from '@/components/channel-setup/OAuthWindowManager';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useChannelSetup = () => {
   const { channels, loading, error, fetchAccounts, connectAccount } = useUnipile();
@@ -75,6 +76,35 @@ export const useChannelSetup = () => {
     };
   }, []);
 
+  const handleCleanupChannels = async () => {
+    try {
+      console.log('🧹 Nettoyage des canaux...');
+      const { data, error } = await supabase.functions.invoke('cleanup-channels');
+      
+      if (error) throw error;
+      
+      console.log('✅ Nettoyage terminé:', data);
+      toast({
+        title: "Nettoyage terminé",
+        description: `${data.channels_before} → ${data.channels_after} canaux`,
+      });
+      
+      // Forcer le rechargement
+      setHasLoadedAccounts(false);
+      setTimeout(() => {
+        fetchAccountsOnce();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('❌ Erreur nettoyage:', error);
+      toast({
+        title: "Erreur nettoyage",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleConnectProvider = async (provider: string) => {
     if (!user) {
       toast({
@@ -102,6 +132,13 @@ export const useChannelSetup = () => {
         toast({
           title: "QR Code généré",
           description: "Scannez le QR code avec WhatsApp pour connecter votre compte",
+        });
+      } else if (result.requires_sms) {
+        // Alternative WhatsApp par SMS
+        setConnecting(null);
+        toast({
+          title: "Connexion WhatsApp",
+          description: "Connexion par SMS disponible - cette fonctionnalité sera ajoutée prochainement",
         });
       } else if (result.authorization_url) {
         // Pour OAuth, utiliser le gestionnaire de fenêtre
@@ -210,6 +247,7 @@ export const useChannelSetup = () => {
     handleConnectProvider,
     handleRefreshAccounts,
     handleQRError,
+    handleCleanupChannels,
     setQrCode,
     fetchAccountsOnce
   };

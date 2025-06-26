@@ -20,6 +20,7 @@ interface ChannelSetupLayoutProps {
   isRefreshing: boolean;
   onConnect: (provider: string) => void;
   onRefresh: () => void;
+  onCleanup?: () => void;
   onComplete: () => void;
   onQRClose: () => void;
   onQRRegenerate: () => void;
@@ -37,6 +38,7 @@ const ChannelSetupLayout = ({
   isRefreshing,
   onConnect,
   onRefresh,
+  onCleanup,
   onComplete,
   onQRClose,
   onQRRegenerate,
@@ -86,6 +88,7 @@ const ChannelSetupLayout = ({
           connectedChannelsCount={connectedChannelsCount}
           onComplete={onComplete}
           onRefresh={onRefresh}
+          onCleanup={onCleanup}
           isRefreshing={isRefreshing}
         />
       </div>

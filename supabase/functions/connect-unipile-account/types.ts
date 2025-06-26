@@ -19,6 +19,8 @@ export interface UnipileAccountRequest {
 export interface ConnectionResponse {
   success: boolean;
   qr_code?: string;
+  phone_number?: string;
+  requires_sms?: boolean;
   account_id?: string;
   authorization_url?: string;
   message?: string;

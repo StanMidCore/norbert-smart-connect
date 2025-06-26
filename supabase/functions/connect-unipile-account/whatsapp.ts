@@ -37,18 +37,30 @@ export async function handleWhatsAppConnection(
     await storeWhatsAppChannel(supabase, userId, accountId);
   }
 
+  // Vérifier si on a un QR code ou une autre méthode
   const qrCode = result.checkpoint?.qrcode || result.qr_code;
-  if (!qrCode) {
+  const phoneNumber = result.checkpoint?.phone_number;
+  const smsCode = result.checkpoint?.sms_code;
+
+  if (qrCode) {
+    return {
+      success: true, 
+      qr_code: qrCode,
+      account_id: accountId,
+      message: 'Scannez le QR code avec WhatsApp'
+    };
+  } else if (phoneNumber) {
+    return {
+      success: true,
+      phone_number: phoneNumber,
+      requires_sms: true,
+      account_id: accountId,
+      message: 'Connexion par numéro de téléphone disponible'
+    };
+  } else {
     return {
       success: false,
-      error: 'QR code non disponible dans la réponse Unipile'
+      error: 'Aucune méthode de connexion disponible'
     };
   }
-
-  return {
-    success: true, 
-    qr_code: qrCode,
-    account_id: accountId,
-    message: 'Scannez le QR code avec WhatsApp'
-  };
 }
