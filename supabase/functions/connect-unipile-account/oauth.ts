@@ -22,19 +22,21 @@ export async function handleOAuthConnection(
       };
     }
     
-    // Utiliser l'API Unipile avec les credentials personnalisés
+    // Utiliser l'API Unipile avec les credentials personnalisés - format corrigé
     const authRequest = {
       provider: 'GOOGLE',
-      google_client_id: googleClientId,
-      google_client_secret: googleClientSecret,
+      client_id: googleClientId,
+      client_secret: googleClientSecret,
       scopes: [
         'https://www.googleapis.com/auth/gmail.readonly',
         'https://www.googleapis.com/auth/gmail.send',
-        'https://www.googleapis.com/auth/calendar'
+        'https://www.googleapis.com/auth/calendar.readonly',
+        'https://www.googleapis.com/auth/calendar.events'
       ],
-      success_redirect_url: `${origin}/oauth-callback?connection=success&provider=gmail`,
-      failure_redirect_url: `${origin}/oauth-callback?connection=failed&provider=gmail`
+      redirect_uri: `${origin}/oauth-callback?connection=success&provider=gmail`
     };
+
+    console.log('Requête OAuth Google:', JSON.stringify(authRequest, null, 2));
 
     const authResponse = await fetch('https://api2.unipile.com:13279/api/v1/accounts', {
       method: 'POST',
@@ -57,7 +59,7 @@ export async function handleOAuthConnection(
       };
     }
 
-    const authUrl = authResult.authorization_url || authResult.auth_url;
+    const authUrl = authResult.authorization_url || authResult.auth_url || authResult.url;
     if (!authUrl) {
       return {
         success: false,
