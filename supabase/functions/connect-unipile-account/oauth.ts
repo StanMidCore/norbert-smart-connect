@@ -7,6 +7,72 @@ export async function handleOAuthConnection(
   unipileApiKey: string,
   origin: string
 ): Promise<ConnectionResponse> {
+  
+  // Pour Gmail, utiliser l'OAuth personnalisé avec les credentials Google
+  if (provider.toLowerCase() === 'gmail') {
+    console.log('Utilisation OAuth personnalisé Google pour Gmail');
+    
+    const googleClientId = Deno.env.get('GOOGLE_CLIENT_ID');
+    const googleClientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
+    
+    if (!googleClientId || !googleClientSecret) {
+      return {
+        success: false,
+        error: 'Configuration Google OAuth manquante. Veuillez configurer GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET.'
+      };
+    }
+    
+    // Utiliser l'API Unipile avec les credentials personnalisés
+    const authRequest = {
+      provider: 'GOOGLE',
+      google_client_id: googleClientId,
+      google_client_secret: googleClientSecret,
+      scopes: [
+        'https://www.googleapis.com/auth/gmail.readonly',
+        'https://www.googleapis.com/auth/gmail.send',
+        'https://www.googleapis.com/auth/calendar'
+      ],
+      success_redirect_url: `${origin}/oauth-callback?connection=success&provider=gmail`,
+      failure_redirect_url: `${origin}/oauth-callback?connection=failed&provider=gmail`
+    };
+
+    const authResponse = await fetch('https://api2.unipile.com:13279/api/v1/accounts', {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': unipileApiKey,
+        'Content-Type': 'application/json',
+        'accept': 'application/json'
+      },
+      body: JSON.stringify(authRequest)
+    });
+
+    const authResult = await authResponse.json();
+    console.log('Réponse Unipile OAuth personnalisé:', authResult);
+
+    if (!authResponse.ok) {
+      console.error('Erreur API Unipile OAuth personnalisé:', authResult);
+      return {
+        success: false,
+        error: `Erreur OAuth Google: ${authResult.message || authResult.detail || 'Erreur inconnue'}`
+      };
+    }
+
+    const authUrl = authResult.authorization_url || authResult.auth_url;
+    if (!authUrl) {
+      return {
+        success: false,
+        error: 'URL d\'autorisation Google non disponible'
+      };
+    }
+
+    return {
+      success: true, 
+      authorization_url: authUrl,
+      message: 'OAuth Google personnalisé configuré'
+    };
+  }
+  
+  // Pour les autres providers (Outlook, Facebook), utiliser l'API hébergée
   console.log('Utilisation de l\'API d\'autorisation hébergée pour:', provider);
   
   // Calculer la date d'expiration (24h à partir de maintenant)
