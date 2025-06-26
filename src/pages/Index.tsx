@@ -12,47 +12,84 @@ const Index = () => {
   // Changer l'écran par défaut vers 'channels' pour les tests
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('signup');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [hasCheckedUrlParams, setHasCheckedUrlParams] = useState(false);
   
-  // Vérifier les paramètres URL au chargement - une seule fois
+  // Vérifier les paramètres URL au chargement
   useEffect(() => {
-    if (hasCheckedUrlParams) return;
+    console.log('🔍 Vérification des paramètres URL au chargement...');
     
-    console.log('🔍 Vérification des paramètres URL...');
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentSuccess = urlParams.get('payment_success');
-    const paymentError = urlParams.get('payment_error');
-    const connection = urlParams.get('connection');
+    const checkUrlParams = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymentSuccess = urlParams.get('payment_success');
+      const paymentError = urlParams.get('payment_error');
+      const redirectTo = urlParams.get('redirect');
+      const connection = urlParams.get('connection');
+      const email = urlParams.get('email');
+      
+      console.log('📋 Paramètres URL détectés:', { 
+        paymentSuccess, 
+        paymentError, 
+        redirectTo, 
+        connection, 
+        email,
+        fullUrl: window.location.href 
+      });
+      
+      // Gérer les callbacks OAuth
+      if (connection && (window.location.pathname === '/oauth-callback' || connection === 'success' || connection === 'failed')) {
+        console.log('🔗 Callback OAuth détecté');
+        setCurrentScreen('oauth-callback');
+        return;
+      }
+      
+      // Gérer la redirection après paiement réussi
+      if (paymentSuccess === 'true') {
+        console.log('🎉 Paiement réussi détecté - redirection vers canaux');
+        setCurrentScreen('channels');
+        
+        // Nettoyer l'URL après redirection
+        setTimeout(() => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          console.log('🧹 URL nettoyée après redirection vers canaux');
+        }, 500);
+        return;
+      }
+      
+      // Gérer les erreurs de paiement
+      if (paymentError === 'true') {
+        console.log('❌ Erreur de paiement détectée');
+        const errorDetails = urlParams.get('error_details');
+        if (errorDetails) {
+          console.error('Détails erreur paiement:', decodeURIComponent(errorDetails));
+        }
+        setCurrentScreen('signup');
+        
+        // Nettoyer l'URL
+        setTimeout(() => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }, 500);
+        return;
+      }
+      
+      // Redirection explicite vers les canaux
+      if (redirectTo === 'channels') {
+        console.log('🔗 Redirection explicite vers canaux');
+        setCurrentScreen('channels');
+        
+        setTimeout(() => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }, 500);
+        return;
+      }
+      
+      console.log('ℹ️ Aucun paramètre de redirection spécial, écran par défaut');
+    };
     
-    console.log('📋 Paramètres détectés:', { paymentSuccess, paymentError, connection });
+    // Vérifier immédiatement et après un court délai pour les redirections
+    checkUrlParams();
+    const timeoutId = setTimeout(checkUrlParams, 100);
     
-    // Vérifier si c'est un callback OAuth
-    if (connection && (window.location.pathname === '/oauth-callback' || connection === 'success' || connection === 'failed')) {
-      console.log('🔗 Callback OAuth détecté, affichage de la page callback');
-      setCurrentScreen('oauth-callback');
-      setHasCheckedUrlParams(true);
-      return;
-    }
-    
-    if (paymentSuccess === 'true') {
-      console.log('🎉 Paiement réussi détecté dans l\'URL, redirection vers canaux');
-      setCurrentScreen('channels');
-      // Nettoyer l'URL après un court délai pour permettre le chargement
-      setTimeout(() => {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }, 100);
-    } else if (paymentError === 'true') {
-      console.log('❌ Erreur de paiement détectée dans l\'URL');
-      setCurrentScreen('signup');
-      setTimeout(() => {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }, 100);
-    } else {
-      console.log('ℹ️ Aucun paramètre de paiement détecté, écran par défaut');
-    }
-    
-    setHasCheckedUrlParams(true);
-  }, [hasCheckedUrlParams]);
+    return () => clearTimeout(timeoutId);
+  }, []);
   
   const handleChannelSetupComplete = () => {
     console.log('🔗 Configuration des canaux terminée, redirection vers profil');
@@ -94,12 +131,18 @@ const Index = () => {
     return (
       <div>
         {/* Bouton de test pour aller directement aux canaux */}
-        <div className="fixed top-4 right-4 z-50">
+        <div className="fixed top-4 right-4 z-50 space-x-2">
           <button 
             onClick={() => setCurrentScreen('channels')}
             className="text-sm text-green-600 underline bg-white px-2 py-1 rounded shadow"
           >
             Test → Canaux
+          </button>
+          <button 
+            onClick={() => window.location.href = '/?payment_success=true&redirect=channels'}
+            className="text-sm text-blue-600 underline bg-white px-2 py-1 rounded shadow"
+          >
+            Test Redirection
           </button>
         </div>
         <SignupFlow 

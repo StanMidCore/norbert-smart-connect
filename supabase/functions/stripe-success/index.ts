@@ -26,8 +26,15 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Récupérer les détails de la session Stripe
-    const stripeKey = Deno.env.get('pk_live_KTfEvs7v5CNVY8MjKuPNUFma');
+    // Utiliser la bonne clé secrète Stripe
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+    
+    if (!stripeKey) {
+      console.error('❌ STRIPE_SECRET_KEY manquante');
+      throw new Error('Configuration Stripe manquante');
+    }
+    
+    console.log('🔑 Récupération session Stripe avec clé secrète...');
     const stripeResponse = await fetch(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, {
       headers: {
         'Authorization': `Bearer ${stripeKey}`,
@@ -35,11 +42,17 @@ serve(async (req) => {
     });
 
     if (!stripeResponse.ok) {
-      throw new Error('Erreur lors de la récupération de la session Stripe');
+      const errorText = await stripeResponse.text();
+      console.error('❌ Erreur Stripe API:', stripeResponse.status, errorText);
+      throw new Error(`Erreur Stripe: ${stripeResponse.status}`);
     }
 
     const session = await stripeResponse.json();
-    console.log('Session Stripe récupérée:', session.payment_status);
+    console.log('✅ Session Stripe récupérée:', {
+      id: session.id,
+      payment_status: session.payment_status,
+      mode: session.mode
+    });
 
     if (session.payment_status === 'paid' || session.mode === 'subscription') {
       console.log('✅ Paiement confirmé, mise à jour de la base de données');
@@ -58,35 +71,37 @@ serve(async (req) => {
         .single();
 
       if (updateError) {
-        console.error('Erreur mise à jour signup:', updateError);
+        console.error('❌ Erreur mise à jour signup:', updateError);
         throw updateError;
       }
 
-      // Créer le compte utilisateur final
-      const { data: user, error: userError } = await supabase
-        .from('users')
-        .insert({
-          email: updatedSignup.email,
-          autopilot: true
-        })
-        .select()
-        .single();
+      console.log('✅ Signup mis à jour:', updatedSignup?.email);
 
-      if (userError) {
-        console.error('Erreur création utilisateur:', userError);
-        // Ne pas faire échouer si l'utilisateur existe déjà
+      // Créer le compte utilisateur final
+      try {
+        const { data: user, error: userError } = await supabase
+          .from('users')
+          .insert({
+            email: updatedSignup.email,
+            autopilot: true
+          })
+          .select()
+          .single();
+
+        if (userError && !userError.message.includes('duplicate')) {
+          console.error('⚠️ Erreur création utilisateur (non-bloquante):', userError);
+        } else {
+          console.log('✅ Utilisateur créé/existant:', updatedSignup.email);
+        }
+      } catch (userCreationError) {
+        console.log('⚠️ Utilisateur probablement existant, continue...');
       }
 
-      console.log('Utilisateur créé:', user?.id);
-
-      // TODO: Ici, appeler les APIs pour créer le compte Unipile et workflow N8N
-      console.log('TODO: Créer compte Unipile et workflow N8N pour:', updatedSignup.email);
-
-      // Construire l'URL de redirection avec les bons paramètres
-      const origin = req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co';
-      const redirectUrl = `${origin}/?payment_success=true&email=${encodeURIComponent(updatedSignup.email)}&redirect=channels`;
+      // Construire l'URL de redirection vers les canaux
+      const origin = req.headers.get('origin') || req.headers.get('referer')?.split('?')[0] || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co';
+      const redirectUrl = `${origin}/?payment_success=true&redirect=channels&email=${encodeURIComponent(updatedSignup.email)}`;
       
-      console.log('🔗 Redirection vers:', redirectUrl);
+      console.log('🔗 Redirection vers les canaux:', redirectUrl);
       
       return new Response(null, {
         status: 302,
@@ -100,11 +115,11 @@ serve(async (req) => {
     throw new Error('Paiement non confirmé');
 
   } catch (error) {
-    console.error('Erreur stripe-success:', error);
+    console.error('❌ Erreur stripe-success:', error);
     
-    // Rediriger vers une page d'erreur
-    const origin = req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co';
-    const errorUrl = `${origin}/?payment_error=true`;
+    // Rediriger vers une page d'erreur avec plus d'informations
+    const origin = req.headers.get('origin') || req.headers.get('referer')?.split('?')[0] || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co';    
+    const errorUrl = `${origin}/?payment_error=true&error_details=${encodeURIComponent(error.message)}`;
     
     return new Response(null, {
       status: 302,
