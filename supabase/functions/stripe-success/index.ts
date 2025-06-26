@@ -26,7 +26,6 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Utiliser la bonne clé secrète Stripe
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
     
     if (!stripeKey) {
@@ -34,7 +33,7 @@ serve(async (req) => {
       throw new Error('Configuration Stripe manquante');
     }
     
-    console.log('🔑 Récupération session Stripe avec clé secrète...');
+    console.log('🔑 Récupération session Stripe...');
     const stripeResponse = await fetch(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, {
       headers: {
         'Authorization': `Bearer ${stripeKey}`,
@@ -97,9 +96,11 @@ serve(async (req) => {
         console.log('⚠️ Utilisateur probablement existant, continue...');
       }
 
-      // Construire l'URL de redirection vers les canaux
-      const origin = req.headers.get('origin') || req.headers.get('referer')?.split('?')[0] || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co';
-      const redirectUrl = `${origin}/?payment_success=true&redirect=channels&email=${encodeURIComponent(updatedSignup.email)}`;
+      // Construire l'URL de redirection correcte vers les canaux
+      const origin = req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co';
+      
+      // S'assurer que l'URL contient tous les paramètres nécessaires pour la redirection
+      const redirectUrl = `${origin}/?payment_success=true&redirect=channels&email=${encodeURIComponent(updatedSignup.email)}&signup_complete=true`;
       
       console.log('🔗 Redirection vers les canaux:', redirectUrl);
       
@@ -118,7 +119,7 @@ serve(async (req) => {
     console.error('❌ Erreur stripe-success:', error);
     
     // Rediriger vers une page d'erreur avec plus d'informations
-    const origin = req.headers.get('origin') || req.headers.get('referer')?.split('?')[0] || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co';    
+    const origin = req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co';    
     const errorUrl = `${origin}/?payment_error=true&error_details=${encodeURIComponent(error.message)}`;
     
     return new Response(null, {

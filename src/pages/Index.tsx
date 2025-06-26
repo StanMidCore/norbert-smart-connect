@@ -13,7 +13,7 @@ const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('signup');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   
-  // Vérifier les paramètres URL au chargement
+  // Vérifier les paramètres URL au chargement avec une approche plus robuste
   useEffect(() => {
     console.log('🔍 Vérification des paramètres URL au chargement...');
     
@@ -24,6 +24,7 @@ const Index = () => {
       const redirectTo = urlParams.get('redirect');
       const connection = urlParams.get('connection');
       const email = urlParams.get('email');
+      const signupComplete = urlParams.get('signup_complete');
       
       console.log('📋 Paramètres URL détectés:', { 
         paymentSuccess, 
@@ -31,27 +32,29 @@ const Index = () => {
         redirectTo, 
         connection, 
         email,
+        signupComplete,
         fullUrl: window.location.href 
       });
       
-      // Gérer les callbacks OAuth
+      // Gérer les callbacks OAuth en priorité
       if (connection && (window.location.pathname === '/oauth-callback' || connection === 'success' || connection === 'failed')) {
         console.log('🔗 Callback OAuth détecté');
         setCurrentScreen('oauth-callback');
-        return;
+        return true;
       }
       
       // Gérer la redirection après paiement réussi
-      if (paymentSuccess === 'true') {
+      if (paymentSuccess === 'true' || (signupComplete === 'true' && redirectTo === 'channels')) {
         console.log('🎉 Paiement réussi détecté - redirection vers canaux');
         setCurrentScreen('channels');
         
         // Nettoyer l'URL après redirection
         setTimeout(() => {
-          window.history.replaceState({}, document.title, window.location.pathname);
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
           console.log('🧹 URL nettoyée après redirection vers canaux');
-        }, 500);
-        return;
+        }, 1000);
+        return true;
       }
       
       // Gérer les erreurs de paiement
@@ -65,9 +68,10 @@ const Index = () => {
         
         // Nettoyer l'URL
         setTimeout(() => {
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }, 500);
-        return;
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }, 1000);
+        return true;
       }
       
       // Redirection explicite vers les canaux
@@ -76,19 +80,27 @@ const Index = () => {
         setCurrentScreen('channels');
         
         setTimeout(() => {
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }, 500);
-        return;
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }, 1000);
+        return true;
       }
       
       console.log('ℹ️ Aucun paramètre de redirection spécial, écran par défaut');
+      return false;
     };
     
-    // Vérifier immédiatement et après un court délai pour les redirections
-    checkUrlParams();
-    const timeoutId = setTimeout(checkUrlParams, 100);
+    // Vérifier immédiatement
+    const hasRedirected = checkUrlParams();
     
-    return () => clearTimeout(timeoutId);
+    // Si aucune redirection immédiate, vérifier après un délai pour les redirections asynchrones
+    if (!hasRedirected) {
+      const timeoutId = setTimeout(() => {
+        checkUrlParams();
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
+    }
   }, []);
   
   const handleChannelSetupComplete = () => {
@@ -139,7 +151,7 @@ const Index = () => {
             Test → Canaux
           </button>
           <button 
-            onClick={() => window.location.href = '/?payment_success=true&redirect=channels'}
+            onClick={() => window.location.href = '/?payment_success=true&redirect=channels&signup_complete=true'}
             className="text-sm text-blue-600 underline bg-white px-2 py-1 rounded shadow"
           >
             Test Redirection
