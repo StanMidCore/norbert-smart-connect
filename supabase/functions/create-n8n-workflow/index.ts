@@ -17,11 +17,15 @@ serve(async (req) => {
 
   try {
     const { userEmail, userName } = await req.json();
-    console.log(`🚀 CRÉATION WORKFLOW N8N - Email: ${userEmail}, Nom: ${userName}`);
+    console.log(`🚀 CRÉATION WORKFLOW N8N PERSONNALISÉ - Email: ${userEmail}, Nom: ${userName}`);
 
-    // Workflow N8N avec folder ID
+    // Générer un webhook unique basé sur l'email du client
+    const webhookPath = `${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`;
+    console.log(`🔗 Webhook personnalisé: ${webhookPath}`);
+
+    // Workflow N8N personnalisé avec le nom = email du client
     const workflowData = {
-      "name": `Agent IA - Norbert - ${userName}`,
+      "name": userEmail, // 🎯 NOM = EMAIL DU CLIENT
       "folderId": NORBERT_FOLDER_ID,
       "nodes": [
         {
@@ -43,57 +47,55 @@ serve(async (req) => {
         {
           "parameters": {
             "promptType": "define",
-            "text": "={{ $json.text}}",
+            "text": "={{ $json.text || $json.message_content || $json.content }}",
             "options": {
-              "systemMessage": `# Overview  
-Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds automatiquement à ses messages entrants (clients ou prospects) sur différents canaux (WhatsApp, email, etc.) pour l'aider à ne rater aucun client.  
+              "systemMessage": `# Agent IA Personnel - ${userEmail}
+
+Tu es l'assistant IA personnel de ${userEmail}. Tu réponds automatiquement aux messages entrants (clients ou prospects) sur différents canaux pour l'aider à ne rater aucun client.
+
+## Informations Client
+- Email: ${userEmail}
+- Nom: ${userName}
 
 ## Context  
-- Tu es intégré dans un workflow n8n individuel, lié au compte utilisateur ${userEmail}.
-- Les données utilisateurs sont stockées dans Supabase (profils, canaux, messages, disponibilités, etc.).
-- Chaque message entrant contient des métadonnées (canal, urgence, nom, etc.).
-- Le mode Autopilot peut être activé ou non :  
-  - Si activé, tu réponds automatiquement.  
-  - Si désactivé, tu proposes une réponse pour validation.  
+- Tu es intégré dans un workflow n8n individuel pour ${userEmail}
+- Les données clients sont stockées dans Supabase (profils, canaux, messages, disponibilités, etc.)
+- Chaque message entrant contient des métadonnées (canal, urgence, nom, etc.)
+- Le mode Autopilot peut être activé ou non
 
-## Instructions  
-1. Lis les métadonnées du message (nom, canal, texte, urgence).
-2. Consulte le profil utilisateur (client_profiles) : bio, services, site, tarifs, disponibilités, instructions IA.
-3. Si le message demande une action (rdv, devis, question), génère une réponse adaptée :
-   - Utilise un ton professionnel, simple et amical.
-   - Réponds au nom de l'utilisateur comme si c'était lui.
-   - Si un rendez-vous est évoqué, propose un créneau selon les disponibilités.
-4. Marque la réponse comme urgente si :
-   - Le client mentionne une urgence ou situation critique.
-   - Le client est pressé ou utilise un ton urgent.
-5. Si le mode Autopilot est désactivé, ajoute #waiting_user_validation à ta réponse.
-6. Si le client a déjà été contacté récemment, adapte ton message (évite les répétitions).
-7. Logue toute réponse dans Supabase (messages.response_status = handled_by_IA).
+## Instructions Personnalisées
+1. Tu réponds AU NOM DE ${userEmail} comme si c'était lui/elle qui écrivait
+2. Utilise les informations de son profil business (activité, services, tarifs, disponibilités)
+3. Adapte ton ton selon son secteur d'activité
+4. Si un rendez-vous est évoqué, propose selon ses disponibilités
+5. Marque urgent si le client mentionne une urgence
+6. Respecte ses préférences de canal et horaires
 
-## Tools  
-- Supabase (profils, messages, canaux, calendriers)
-- Webhooks Unipile (réception de messages)
-- OpenAI, Claude ou Mistral pour traitement NLP
+## Données Disponibles
+- Activité et services: Reçus via webhook lors de la configuration du profil
+- Canaux connectés: WhatsApp, Email, etc. reçus lors de la configuration
+- Disponibilités et tarifs: Configurés par ${userEmail}
 
-## Final Notes  
-- Toutes les réponses doivent sembler humaines et contextualisées.
-- Ne donne pas d'informations que tu ne peux pas vérifier (ex: créneau indisponible).
-- Respecte les préférences de canal et les horaires définis.`
+## Response Style
+- Professionnel mais amical
+- Personnalisé selon l'activité de ${userEmail}
+- Évite les répétitions si contact récent
+- Toujours utile et orienté action`
             }
           },
           "id": "90a55884-3dc3-43cb-adf4-c1db5295ba6d",
-          "name": "Agent IA",
+          "name": `Agent IA - ${userEmail}`,
           "type": "@n8n/n8n-nodes-langchain.agent",
           "position": [920, 600],
           "typeVersion": 1.6
         },
         {
           "parameters": {
-            "name": "user_documents",
-            "description": "Contains all the user's documents that you can check for context to answer user questions."
+            "name": "client_documents",
+            "description": `Documents et informations business de ${userEmail} pour contextualiser les réponses`
           },
           "id": "120e4122-801d-414e-8d25-a06467c4b58e",
-          "name": "Retrieve Documents",
+          "name": "Retrieve Client Documents",
           "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
           "typeVersion": 1,
           "position": [1460, 820]
@@ -158,15 +160,15 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
         },
         {
           "parameters": {
-            "path": `${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`,
+            "path": webhookPath, // 🎯 WEBHOOK UNIQUE PAR CLIENT
             "options": {}
           },
           "type": "n8n-nodes-base.webhook",
           "typeVersion": 2,
           "position": [640, 600],
           "id": "4bcae4cf-c6c5-4bb1-b900-b1c637369984",
-          "name": "Webhook",
-          "webhookId": `${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`
+          "name": "Webhook Personnel",
+          "webhookId": webhookPath
         },
         {
           "parameters": {
@@ -185,14 +187,14 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
           "ai_languageModel": [
             [
               {
-                "node": "Agent IA",
+                "node": `Agent IA - ${userEmail}`,
                 "type": "ai_languageModel",
                 "index": 0
               }
             ]
           ]
         },
-        "Agent IA": {
+        [`Agent IA - ${userEmail}`]: {
           "main": [
             [
               {
@@ -203,11 +205,11 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
             ]
           ]
         },
-        "Retrieve Documents": {
+        "Retrieve Client Documents": {
           "ai_tool": [
             [
               {
-                "node": "Agent IA",
+                "node": `Agent IA - ${userEmail}`,
                 "type": "ai_tool",
                 "index": 0
               }
@@ -218,7 +220,7 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
           "ai_vectorStore": [
             [
               {
-                "node": "Retrieve Documents",
+                "node": "Retrieve Client Documents",
                 "type": "ai_vectorStore",
                 "index": 0
               }
@@ -229,7 +231,7 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
           "ai_languageModel": [
             [
               {
-                "node": "Retrieve Documents",
+                "node": "Retrieve Client Documents",
                 "type": "ai_languageModel",
                 "index": 0
               }
@@ -247,11 +249,11 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
             ]
           ]
         },
-        "Webhook": {
+        "Webhook Personnel": {
           "main": [
             [
               {
-                "node": "Agent IA",
+                "node": `Agent IA - ${userEmail}`,
                 "type": "main",
                 "index": 0
               }
@@ -268,6 +270,10 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
         {
           "name": "norbert",
           "id": "norbert-tag"
+        },
+        {
+          "name": userEmail,
+          "id": `client-${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}`
         }
       ],
       "triggerCount": 1,
@@ -275,7 +281,7 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
     };
 
     // Créer le workflow avec l'API REST N8N
-    console.log('📝 Création du workflow N8N dans le dossier Norbert...');
+    console.log('📝 Création du workflow N8N personnalisé dans le dossier Norbert...');
     const createResponse = await fetch(`${N8N_BASE_URL}/rest/workflows`, {
       method: 'POST',
       headers: {
@@ -292,10 +298,10 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
     }
 
     const workflow = await createResponse.json();
-    console.log('✅ Workflow N8N créé avec ID:', workflow.id, 'dans le dossier:', NORBERT_FOLDER_ID);
+    console.log('✅ Workflow N8N personnalisé créé avec ID:', workflow.id, 'pour:', userEmail);
 
     // Activer le workflow
-    console.log('🔄 Activation du workflow N8N...');
+    console.log('🔄 Activation du workflow N8N personnalisé...');
     const activateResponse = await fetch(`${N8N_BASE_URL}/rest/workflows/${workflow.id}/activate`, {
       method: 'POST',
       headers: {
@@ -310,20 +316,21 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
       throw new Error(`Erreur activation workflow: ${activateResponse.statusText} - ${errorText}`);
     }
 
-    console.log('✅ Workflow N8N activé avec succès dans le dossier Norbert');
+    console.log('✅ Workflow N8N personnalisé activé avec succès pour:', userEmail);
 
     return new Response(JSON.stringify({
       success: true,
       workflow_id: workflow.id,
-      webhook_url: `${N8N_BASE_URL}/webhook/${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`,
+      webhook_url: `${N8N_BASE_URL}/webhook/${webhookPath}`,
       folder_id: NORBERT_FOLDER_ID,
-      message: 'Workflow N8N créé et activé dans le dossier Norbert avec succès'
+      client_email: userEmail,
+      message: `Workflow N8N personnalisé créé et activé pour ${userEmail}`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error('❌ ERREUR CRITIQUE création workflow N8N:', error);
+    console.error('❌ ERREUR CRITIQUE création workflow N8N personnalisé:', error);
     return new Response(JSON.stringify({
       success: false,
       error: error.message,

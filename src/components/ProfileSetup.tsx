@@ -7,7 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useNorbertUser } from '@/hooks/useNorbertUser';
 import { Loader2, User, Building2, MessageSquare, Zap, Globe, Clock, Euro, ArrowRight } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProfileSetupProps {
   onComplete: () => void;
@@ -27,6 +29,7 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
   
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useNorbertUser();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -35,30 +38,80 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
     }));
   };
 
-  const sendToN8N = async (profileData: any) => {
+  const sendToPersonalizedWebhook = async (profileData: any) => {
+    if (!user?.email) {
+      console.error('❌ Email utilisateur manquant pour webhook personnalisé');
+      return;
+    }
+
     try {
-      const webhookUrl = 'https://norbert.n8n.cloud/webhook/norbert-profile-setup';
+      // Générer l'URL du webhook personnalisé basé sur l'email
+      const webhookPath = `${user.email.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`;
+      const webhookUrl = `https://n8n.srv784558.hstgr.cloud/webhook/${webhookPath}`;
       
-      await fetch(webhookUrl, {
+      console.log(`🎯 Envoi vers webhook personnalisé: ${webhookUrl}`);
+      
+      const payload = {
+        type: 'profile_setup',
+        user_email: user.email,
+        user_name: formData.name,
+        company: formData.company,
+        position: formData.position,
+        activity: profileData.activity,
+        services: profileData.services,
+        availability: profileData.availability,
+        pricing: profileData.pricing,
+        website: profileData.website,
+        timestamp: new Date().toISOString(),
+        source: 'norbert_profile_setup'
+      };
+      
+      const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          user: formData.name,
-          company: formData.company,
-          activity: profileData.activity,
-          services: profileData.services,
-          availability: profileData.availability,
-          pricing: profileData.pricing,
-          website: profileData.website,
-          timestamp: new Date().toISOString(),
-        }),
+        body: JSON.stringify(payload),
       });
       
-      console.log('Données envoyées vers N8N');
+      if (response.ok) {
+        console.log('✅ Données envoyées vers webhook personnalisé');
+      } else {
+        console.error('❌ Erreur webhook personnalisé:', response.status);
+      }
     } catch (error) {
-      console.error('Erreur envoi N8N:', error);
+      console.error('❌ Erreur envoi webhook personnalisé:', error);
+    }
+  };
+
+  const saveToSupabase = async (profileData: any) => {
+    if (!user?.id) {
+      console.error('❌ User ID manquant pour sauvegarde Supabase');
+      return;
+    }
+
+    try {
+      console.log('💾 Sauvegarde profil client dans Supabase...');
+      
+      const { data, error } = await supabase
+        .from('client_profiles')
+        .upsert({
+          user_id: user.id,
+          bio_description: profileData.activity,
+          services_offered: profileData.services,
+          availability: profileData.availability,
+          pricing: profileData.pricing,
+          website_url: profileData.website,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('❌ Erreur sauvegarde Supabase:', error);
+      } else {
+        console.log('✅ Profil sauvegardé dans Supabase');
+      }
+    } catch (error) {
+      console.error('❌ Erreur Supabase:', error);
     }
   };
 
@@ -66,15 +119,15 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
     setLoading(true);
     
     try {
-      // Simuler une sauvegarde locale
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 1. Sauvegarder dans Supabase
+      await saveToSupabase(formData);
       
-      // Envoyer vers N8N
-      await sendToN8N(formData);
+      // 2. Envoyer vers le webhook personnalisé du client
+      await sendToPersonalizedWebhook(formData);
       
       toast({
         title: "Profil configuré",
-        description: "Votre profil IA a été sauvegardé avec succès",
+        description: `Votre IA personnalisée a été configurée avec succès`,
       });
       
     } catch (error) {
@@ -105,6 +158,11 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
           <p className="text-main opacity-70 mt-2">
             Ces informations permettront à Norbert de répondre comme vous
           </p>
+          {user?.email && (
+            <p className="text-sm text-blue-600 mt-1">
+              IA personnalisée pour: {user.email}
+            </p>
+          )}
         </div>
 
         {/* Votre activité */}
@@ -222,8 +280,8 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
                 <div className="flex items-center space-x-3">
                   <Zap className="h-8 w-8 text-purple-600" />
                   <div>
-                    <h3 className="font-medium text-main">IA Norbert</h3>
-                    <p className="text-sm text-main opacity-70">Assistant intelligent activé</p>
+                    <h3 className="font-medium text-main">IA Norbert Personnalisée</h3>
+                    <p className="text-sm text-main opacity-70">Assistant intelligent activé pour vous</p>
                   </div>
                 </div>
                 <Badge className="bg-status-success text-white">
@@ -244,10 +302,10 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Sauvegarde en cours...
+                Configuration en cours...
               </>
             ) : (
-              'Sauvegarder le profil'
+              'Configurer mon IA personnalisée'
             )}
           </Button>
 

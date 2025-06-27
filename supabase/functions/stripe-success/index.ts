@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 
@@ -6,259 +7,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const N8N_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2N2E5NWQ2NS1kZTI5LTRlN2EtYjQxZC0yYjhjZTdiYTQwYzgiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzUxMDExNzgxfQ.k4c-dAmKJpK5aUk2idyW1HFNmayS3xba4PrbUGa88CY';
-const N8N_BASE_URL = 'https://n8n.srv784558.hstgr.cloud';
-const NORBERT_FOLDER_ID = 'uO7pivHjhurjrT2k';
-
-const createN8NWorkflow = async (userEmail: string, userName: string) => {
-  console.log(`🚀 Création du workflow N8N pour: ${userEmail}`);
+const createN8NWorkflowForClient = async (userEmail: string, userName: string) => {
+  console.log(`🚀 Création du workflow N8N personnalisé pour: ${userEmail}`);
   
-  const workflowData = {
-    name: `Norbert Workflow - ${userName}`,
-    folderId: NORBERT_FOLDER_ID,
-    nodes: [
-      {
-        parameters: {
-          httpMethod: "POST",
-          path: "norbert-webhook",
-          responseMode: "responseNode",
-          options: {}
-        },
-        id: "webhook-node",
-        name: "Webhook",
-        type: "n8n-nodes-base.webhook",
-        typeVersion: 1,
-        position: [240, 300]
-      },
-      {
-        parameters: {
-          conditions: {
-            options: {
-              caseSensitive: true,
-              leftValue: "",
-              typeValidation: "strict"
-            },
-            conditions: [
-              {
-                leftValue: "={{ $json.type }}",
-                rightValue: "email_received",
-                operator: {
-                  type: "string",
-                  operation: "equals"
-                }
-              }
-            ],
-            combinator: "and"
-          }
-        },
-        id: "if-email-node",
-        name: "If Email",
-        type: "n8n-nodes-base.if",
-        typeVersion: 2,
-        position: [460, 300]
-      },
-      {
-        parameters: {
-          url: "https://api.openai.com/v1/chat/completions",
-          authentication: "headerAuth",
-          sendHeaders: true,
-          headerParameters: {
-            parameters: [
-              {
-                name: "Content-Type",
-                value: "application/json"
-              }
-            ]
-          },
-          sendBody: true,
-          bodyParameters: {
-            parameters: [
-              {
-                name: "model",
-                value: "gpt-4"
-              },
-              {
-                name: "messages",
-                value: "={{ [{'role': 'system', 'content': 'Tu es Norbert, l\\'assistant IA de ' + $json.user_name + '. Réponds de manière professionnelle et personnalisée.'}, {'role': 'user', 'content': $json.message_content}] }}"
-              },
-              {
-                name: "max_tokens",
-                value: 500
-              }
-            ]
-          }
-        },
-        id: "openai-node",
-        name: "Generate AI Response",
-        type: "n8n-nodes-base.httpRequest",
-        typeVersion: 4,
-        position: [680, 300]
-      },
-      {
-        parameters: {
-          url: "https://api2.unipile.com:13279/api/v1/messages",
-          authentication: "headerAuth",
-          sendHeaders: true,
-          headerParameters: {
-            parameters: [
-              {
-                name: "X-API-KEY",
-                value: "={{$json.unipile_api_key}}"
-              },
-              {
-                name: "Content-Type",
-                value: "application/json"
-              }
-            ]
-          },
-          sendBody: true,
-          bodyParameters: {
-            parameters: [
-              {
-                name: "account_id",
-                value: "={{$json.account_id}}"
-              },
-              {
-                name: "to",
-                value: "={{$json.sender_email}}"
-              },
-              {
-                name: "subject",
-                value: "Re: {{$json.subject}}"
-              },
-              {
-                name: "body",
-                value: "={{$('Generate AI Response').item.json.choices[0].message.content}}"
-              }
-            ]
-          }
-        },
-        id: "send-response-node",
-        name: "Send Email Response",
-        type: "n8n-nodes-base.httpRequest",
-        typeVersion: 4,
-        position: [900, 300]
-      },
-      {
-        parameters: {
-          respondWith: "allIncomingItems",
-          options: {}
-        },
-        id: "respond-webhook-node",
-        name: "Respond to Webhook",
-        type: "n8n-nodes-base.respondToWebhook",
-        typeVersion: 1,
-        position: [1120, 300]
-      }
-    ],
-    connections: {
-      "Webhook": {
-        "main": [
-          [
-            {
-              "node": "If Email",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "If Email": {
-        "main": [
-          [
-            {
-              "node": "Generate AI Response",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Generate AI Response": {
-        "main": [
-          [
-            {
-              "node": "Send Email Response",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Send Email Response": {
-        "main": [
-          [
-            {
-              "node": "Respond to Webhook",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      }
-    },
-    pinData: {},
-    settings: {
-      executionOrder: "v1"
-    },
-    staticData: null,
-    tags: [
-      {
-        name: "norbert",
-        id: "norbert-tag"
-      }
-    ],
-    triggerCount: 1,
-    active: false,
-    versionId: null
-  };
-
   try {
-    // Créer le workflow dans le dossier Norbert
-    console.log('📝 Création du workflow N8N dans le dossier Norbert...');
-    const createResponse = await fetch(`${N8N_BASE_URL}/rest/workflows`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${N8N_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(workflowData)
-    });
+    // Appeler la fonction create-n8n-workflow avec les détails du client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    if (!createResponse.ok) {
-      const errorText = await createResponse.text();
-      console.error('❌ Erreur création workflow:', errorText);
-      throw new Error(`Erreur création workflow: ${createResponse.statusText}`);
-    }
-
-    const workflow = await createResponse.json();
-    console.log('✅ Workflow créé avec ID:', workflow.id, 'dans le dossier:', NORBERT_FOLDER_ID);
-
-    // Activer le workflow
-    console.log('🔄 Activation du workflow...');
-    const activateResponse = await fetch(`${N8N_BASE_URL}/rest/workflows/${workflow.id}/activate`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${N8N_API_KEY}`,
-        'Content-Type': 'application/json'
+    const { data: workflowData, error: workflowError } = await supabase.functions.invoke('create-n8n-workflow', {
+      body: {
+        userEmail: userEmail,
+        userName: userName
       }
     });
 
-    if (!activateResponse.ok) {
-      const errorText = await activateResponse.text();
-      console.error('❌ Erreur activation workflow:', errorText);
-      throw new Error(`Erreur activation workflow: ${activateResponse.statusText}`);
+    if (workflowError) {
+      console.error('❌ Erreur création workflow personnalisé:', workflowError);
+      throw workflowError;
     }
 
-    console.log('✅ Workflow activé avec succès dans le dossier Norbert');
-
-    return {
-      workflow_id: workflow.id,
-      webhook_url: `${N8N_BASE_URL}/webhook/norbert-webhook`,
-      folder_id: NORBERT_FOLDER_ID
-    };
+    console.log('✅ Workflow N8N personnalisé créé:', workflowData);
+    return workflowData;
   } catch (error) {
-    console.error('❌ Erreur complète lors de la création du workflow:', error);
+    console.error('❌ Erreur complète lors de la création du workflow personnalisé:', error);
     throw error;
   }
 };
@@ -357,13 +130,32 @@ serve(async (req) => {
         await cleanupChannelsForUser(supabase, user.id, updatedSignup.email);
       }
 
-      // Créer le workflow N8N dans le dossier Norbert
+      // 🎯 CRÉER LE WORKFLOW N8N PERSONNALISÉ POUR CE CLIENT
       try {
-        console.log('🚀 Début de la création du workflow N8N dans le dossier Norbert...');
-        const workflowResult = await createN8NWorkflow(updatedSignup.email, updatedSignup.email.split('@')[0]);
-        console.log('✅ Workflow N8N créé et activé dans le dossier Norbert:', workflowResult);
+        console.log('🚀 Début de la création du workflow N8N personnalisé...');
+        const userName = updatedSignup.email.split('@')[0]; // Utiliser la partie avant @
+        const workflowResult = await createN8NWorkflowForClient(updatedSignup.email, userName);
+        
+        console.log('✅ Workflow N8N personnalisé créé:', workflowResult);
+        
+        // Sauvegarder l'ID du workflow et l'URL du webhook dans la DB
+        if (workflowResult.success && user?.id) {
+          const { error: workflowUpdateError } = await supabase
+            .from('users')
+            .update({
+              workflow_id_n8n: workflowResult.workflow_id
+            })
+            .eq('id', user.id);
+            
+          if (workflowUpdateError) {
+            console.error('❌ Erreur sauvegarde workflow_id:', workflowUpdateError);
+          } else {
+            console.log('✅ Workflow ID sauvegardé pour l\'utilisateur');
+          }
+        }
+        
       } catch (workflowErr) {
-        console.error('❌ Erreur workflow N8N:', workflowErr);
+        console.error('❌ Erreur workflow N8N personnalisé:', workflowErr);
         // Ne pas bloquer la redirection même si le workflow échoue
       }
 
