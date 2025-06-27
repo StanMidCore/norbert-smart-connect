@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const N8N_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2N2E5NWQ2NS1kZTI5LTRlN2EtYjQxZC0yYjhjZTdiYTQwYzgiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzUxMDExNzgxfQ.k4c-dAmKJpK5aUk2idyW1HFNmayS3xba4PrbUGa88CY';
-const N8N_BASE_URL = 'https://norbert.n8n.cloud/api/v1';
+const N8N_BASE_URL = 'https://n8n.srv784558.hstgr.cloud/api/v1';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -317,7 +317,7 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
       workflow_id: workflow.id,
       user_email: userEmail,
       user_name: userName,
-      webhook_url: `https://norbert.n8n.cloud/webhook/${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`,
+      webhook_url: `https://n8n.srv784558.hstgr.cloud/webhook/${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`,
       folder_path: 'Personal/AGENCE IA/NORBERT/CLIENTS',
       created_at: new Date().toISOString(),
       workflow_data: workflowData,
@@ -327,14 +327,14 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
 
     // ESSAYER TOUS LES ENDPOINTS DE SAUVEGARDE POSSIBLES
     const saveEndpoints = [
-      'https://norbert.n8n.cloud/webhook/save-client-workflow',
-      'https://norbert.n8n.cloud/webhook/save-workflow', 
-      'https://norbert.n8n.cloud/api/webhook/save-client',
-      'https://norbert.n8n.cloud/webhook/file-save',
-      'https://norbert.n8n.cloud/api/v1/save-client',
-      'https://norbert.n8n.cloud/webhook/client-save',
-      'https://norbert.n8n.cloud/webhook/norbert-save-client',
-      'https://norbert.n8n.cloud/api/save-client-workflow'
+      'https://n8n.srv784558.hstgr.cloud/webhook/save-client-workflow',
+      'https://n8n.srv784558.hstgr.cloud/webhook/save-workflow', 
+      'https://n8n.srv784558.hstgr.cloud/api/webhook/save-client',
+      'https://n8n.srv784558.hstgr.cloud/webhook/file-save',
+      'https://n8n.srv784558.hstgr.cloud/api/v1/save-client',
+      'https://n8n.srv784558.hstgr.cloud/webhook/client-save',
+      'https://n8n.srv784558.hstgr.cloud/webhook/norbert-save-client',
+      'https://n8n.srv784558.hstgr.cloud/api/save-client-workflow'
     ];
 
     let saveSuccess = false;
@@ -383,7 +383,7 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
     return new Response(JSON.stringify({
       success: true,
       workflow_id: workflow.id,
-      webhook_url: `https://norbert.n8n.cloud/webhook/${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`,
+      webhook_url: `https://n8n.srv784558.hstgr.cloud/webhook/${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`,
       saved_to_server: saveSuccess,
       save_location: saveSuccess ? 'Personal/AGENCE IA/NORBERT/CLIENTS' : null,
       message: saveSuccess 

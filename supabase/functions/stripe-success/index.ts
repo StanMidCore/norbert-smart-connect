@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const N8N_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2N2E5NWQ2NS1kZTI5LTRlN2EtYjQxZC0yYjhjZTdiYTQwYzgiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzUxMDExNzgxfQ.k4c-dAmKJpK5aUk2idyW1HFNmayS3xba4PrbUGa88CY';
-const N8N_BASE_URL = 'https://norbert.n8n.cloud/api/v1';
+const N8N_BASE_URL = 'https://n8n.srv784558.hstgr.cloud/api/v1';
 
 const createN8NWorkflow = async (userEmail: string, userName: string) => {
   console.log(`🚀 Création du workflow N8N pour: ${userEmail}`);
@@ -256,7 +256,7 @@ const createN8NWorkflow = async (userEmail: string, userName: string) => {
       workflow_id: workflow.id,
       user_email: userEmail,
       user_name: userName,
-      webhook_url: `https://norbert.n8n.cloud/webhook/norbert-webhook`,
+      webhook_url: `https://n8n.srv784558.hstgr.cloud/webhook/norbert-webhook`,
       folder_path: 'Personal/AGENCE IA/NORBERT/CLIENTS',
       created_at: new Date().toISOString(),
       workflow_data: workflowData,
@@ -266,9 +266,9 @@ const createN8NWorkflow = async (userEmail: string, userName: string) => {
     try {
       // Essayer plusieurs endpoints de sauvegarde pour maximiser les chances de succès
       const saveEndpoints = [
-        'https://norbert.n8n.cloud/webhook/save-client-workflow',
-        'https://norbert.n8n.cloud/webhook/save-workflow',
-        'https://norbert.n8n.cloud/api/webhook/save-client'
+        'https://n8n.srv784558.hstgr.cloud/webhook/save-client-workflow',
+        'https://n8n.srv784558.hstgr.cloud/webhook/save-workflow',
+        'https://n8n.srv784558.hstgr.cloud/api/webhook/save-client'
       ];
 
       let saveSuccess = false;
@@ -304,7 +304,7 @@ const createN8NWorkflow = async (userEmail: string, userName: string) => {
         console.log('🔄 Tentative de sauvegarde alternative...');
         
         try {
-          const alternativeSave = await fetch('https://norbert.n8n.cloud/webhook/file-save', {
+          const alternativeSave = await fetch('https://n8n.srv784558.hstgr.cloud/webhook/file-save', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -337,7 +337,7 @@ const createN8NWorkflow = async (userEmail: string, userName: string) => {
 
     return {
       workflow_id: workflow.id,
-      webhook_url: `https://norbert.n8n.cloud/webhook/norbert-webhook`,
+      webhook_url: `https://n8n.srv784558.hstgr.cloud/webhook/norbert-webhook`,
       saved_to_server: true
     };
   } catch (error) {
