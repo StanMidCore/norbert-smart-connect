@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,12 +34,42 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
     }));
   };
 
+  const sendToN8N = async (profileData: any) => {
+    try {
+      const webhookUrl = 'https://norbert.n8n.cloud/webhook/norbert-profile-setup';
+      
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user: profile.name,
+          company: profile.company,
+          activity: profileData.activity,
+          services: profileData.services,
+          availability: profileData.availability,
+          pricing: profileData.pricing,
+          website: profileData.website,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+      
+      console.log('Données envoyées vers N8N');
+    } catch (error) {
+      console.error('Erreur envoi N8N:', error);
+    }
+  };
+
   const handleComplete = async () => {
     setLoading(true);
     
     try {
       // Simuler une sauvegarde locale
       await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Envoyer vers N8N
+      await sendToN8N(formData);
       
       toast({
         title: "Profil configuré",
@@ -69,7 +98,7 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
         {/* Header */}
         <div className="text-center">
           <div className="w-16 h-16 bg-header rounded-full flex items-center justify-center mx-auto mb-4">
-            <User className="h-8 w-8 text-white" />
+            <User className="h-8 w-8 text-header" />
           </div>
           <h1 className="text-2xl font-bold text-main">Configurez votre IA</h1>
           <p className="text-main opacity-70 mt-2">
@@ -209,7 +238,7 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
           <Button 
             onClick={handleComplete}
             disabled={loading}
-            className="w-full bg-header hover:bg-header/90 text-white py-6 text-lg"
+            className="w-full bg-header hover:bg-header/90 text-header py-6 text-lg"
           >
             {loading ? (
               <>

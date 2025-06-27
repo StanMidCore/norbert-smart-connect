@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -107,7 +108,7 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
   return (
     <div className="min-h-screen bg-app-bg">
       {/* Header */}
-      <div className="bg-header text-white p-4 pt-safe-offset-12">
+      <div className="bg-header text-header p-4 pt-safe-offset-12">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">Dashboard Norbert</h1>
           <div className="flex items-center space-x-3">
@@ -206,6 +207,7 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
           <Button 
             onClick={() => onNavigate('calendar')}
             className="h-16 bg-white border border-gray-200 text-main hover:bg-gray-50 flex flex-col items-center justify-center space-y-1"
+            variant="outline"
           >
             <Calendar className="h-6 w-6" />
             <span className="text-sm">Calendrier</span>
@@ -214,6 +216,7 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
           <Button 
             onClick={() => onNavigate('clients')}
             className="h-16 bg-white border border-gray-200 text-main hover:bg-gray-50 flex flex-col items-center justify-center space-y-1"
+            variant="outline"
           >
             <Users className="h-6 w-6" />
             <span className="text-sm">Clients</span>
@@ -222,16 +225,16 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-header text-white p-4 pb-safe-offset-6">
+      <div className="fixed bottom-0 left-0 right-0 bg-header text-header p-4 pb-safe-offset-6">
         <div className="flex justify-around">
-          <button className="flex flex-col items-center space-y-1">
+          <button className="flex flex-col items-center space-y-1 text-header">
             <MessageSquare className="h-6 w-6" />
             <span className="text-xs">Messages</span>
           </button>
           
           <button 
             onClick={() => onNavigate('calendar')}
-            className="flex flex-col items-center space-y-1"
+            className="flex flex-col items-center space-y-1 text-header"
           >
             <Calendar className="h-6 w-6" />
             <span className="text-xs">Calendrier</span>
@@ -239,7 +242,7 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
           
           <button 
             onClick={() => onNavigate('clients')}
-            className="flex flex-col items-center space-y-1"
+            className="flex flex-col items-center space-y-1 text-header"
           >
             <Users className="h-6 w-6" />
             <span className="text-xs">Clients</span>
@@ -247,7 +250,7 @@ const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
           
           <button 
             onClick={() => onNavigate('settings')}
-            className="flex flex-col items-center space-y-1"
+            className="flex flex-col items-center space-y-1 text-header"
           >
             <Settings className="h-6 w-6" />
             <span className="text-xs">Réglages</span>

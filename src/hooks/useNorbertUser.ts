@@ -8,6 +8,24 @@ export const useNorbertUser = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const cleanupChannelsForNewUser = async (userId: string) => {
+    try {
+      // Nettoyer tous les canaux existants pour ce nouvel utilisateur
+      const { error: cleanupError } = await supabase
+        .from('channels')
+        .delete()
+        .eq('user_id', userId);
+
+      if (cleanupError) {
+        console.error('Erreur nettoyage canaux:', cleanupError);
+      } else {
+        console.log('Canaux nettoyés pour le nouvel utilisateur');
+      }
+    } catch (error) {
+      console.error('Erreur lors du nettoyage:', error);
+    }
+  };
+
   const createOrGetUser = async (email: string, phoneNumber?: string) => {
     setLoading(true);
     setError(null);
@@ -41,6 +59,28 @@ export const useNorbertUser = () => {
       }
 
       console.log('Utilisateur créé:', data.user);
+      
+      // Nettoyer les canaux pour ce nouvel utilisateur
+      await cleanupChannelsForNewUser(data.user.id);
+      
+      // Créer le workflow N8N pour ce nouvel utilisateur
+      try {
+        const { data: workflowData, error: workflowError } = await supabase.functions.invoke('create-n8n-workflow', {
+          body: {
+            userEmail: data.user.email,
+            userName: data.user.email.split('@')[0]
+          }
+        });
+
+        if (workflowError) {
+          console.error('Erreur création workflow N8N:', workflowError);
+        } else {
+          console.log('Workflow N8N créé:', workflowData);
+        }
+      } catch (workflowErr) {
+        console.error('Erreur workflow N8N:', workflowErr);
+      }
+      
       setUser(data.user);
       return data.user;
     } catch (err) {
@@ -61,6 +101,10 @@ export const useNorbertUser = () => {
         if (insertError) throw insertError;
         
         console.log('Utilisateur créé en fallback:', newUser);
+        
+        // Nettoyer les canaux pour ce nouvel utilisateur
+        await cleanupChannelsForNewUser(newUser.id);
+        
         setUser(newUser);
         return newUser;
       } catch (fallbackErr) {
