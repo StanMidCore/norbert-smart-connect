@@ -239,8 +239,8 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
           <Button 
             onClick={handleComplete}
             disabled={loading}
-            className="w-full py-6 text-lg text-white"
-            style={{ backgroundColor: 'var(--header-background)' }}
+            className="w-full py-6 text-lg"
+            variant="default"
           >
             {loading ? (
               <>
@@ -254,8 +254,8 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
 
           <Button 
             onClick={handleGoToDashboard}
-            className="w-full py-6 text-lg text-white"
-            style={{ backgroundColor: 'var(--cta-button)' }}
+            className="w-full py-6 text-lg"
+            variant="cta"
           >
             Accéder au Dashboard
             <ArrowRight className="ml-2 h-5 w-5" />
