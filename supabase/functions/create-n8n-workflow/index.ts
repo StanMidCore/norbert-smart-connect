@@ -11,17 +11,35 @@ const N8N_BASE_URL = 'https://n8n.srv784558.hstgr.cloud';
 const NORBERT_FOLDER_ID = 'uO7pivHjhurjrT2k';
 
 serve(async (req) => {
+  console.log('🎯 === DÉBUT FONCTION create-n8n-workflow ===');
+  console.log(`📨 Méthode: ${req.method}`);
+  console.log(`🔗 URL: ${req.url}`);
+  
   if (req.method === 'OPTIONS') {
+    console.log('⚡ Réponse OPTIONS CORS');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { userEmail, userName } = await req.json();
+    console.log('📋 Lecture du body de la requête...');
+    const body = await req.json();
+    console.log('📊 Body reçu:', JSON.stringify(body, null, 2));
+    
+    const { userEmail, userName } = body;
     console.log(`🚀 CRÉATION WORKFLOW N8N PERSONNALISÉ - Email: ${userEmail}, Nom: ${userName}`);
+
+    if (!userEmail || !userName) {
+      console.error('❌ Paramètres manquants:', { userEmail, userName });
+      throw new Error('Email et nom utilisateur requis');
+    }
 
     // Générer un webhook unique basé sur l'email du client
     const webhookPath = `${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`;
-    console.log(`🔗 Webhook personnalisé: ${webhookPath}`);
+    console.log(`🔗 Webhook personnalisé généré: ${webhookPath}`);
+
+    // Construire l'URL complète du webhook
+    const webhookUrl = `${N8N_BASE_URL}/webhook/${webhookPath}`;
+    console.log(`🌐 URL webhook complète: ${webhookUrl}`);
 
     // Workflow N8N personnalisé avec le nom = email du client
     const workflowData = {
@@ -280,8 +298,14 @@ Tu es l'assistant IA personnel de ${userEmail}. Tu réponds automatiquement aux 
       "versionId": null
     };
 
+    console.log('📄 Workflow data préparé');
+    console.log(`📊 Taille du workflow: ${JSON.stringify(workflowData).length} caractères`);
+
     // Créer le workflow avec l'API REST N8N
-    console.log('📝 Création du workflow N8N personnalisé dans le dossier Norbert...');
+    console.log('📝 Envoi requête POST vers N8N...');
+    console.log(`🔗 URL: ${N8N_BASE_URL}/rest/workflows`);
+    console.log(`🔑 Authorization: Bearer ${N8N_API_KEY.substring(0, 20)}...`);
+    
     const createResponse = await fetch(`${N8N_BASE_URL}/rest/workflows`, {
       method: 'POST',
       headers: {
@@ -291,17 +315,23 @@ Tu es l'assistant IA personnel de ${userEmail}. Tu réponds automatiquement aux 
       body: JSON.stringify(workflowData)
     });
 
+    console.log(`📡 Réponse N8N: ${createResponse.status} ${createResponse.statusText}`);
+
     if (!createResponse.ok) {
       const errorText = await createResponse.text();
-      console.error('❌ Erreur création workflow N8N:', errorText);
+      console.error('❌ Erreur détaillée N8N:', errorText);
+      console.error('❌ Status:', createResponse.status);
+      console.error('❌ Headers:', Object.fromEntries(createResponse.headers.entries()));
       throw new Error(`Erreur création workflow: ${createResponse.statusText} - ${errorText}`);
     }
 
     const workflow = await createResponse.json();
-    console.log('✅ Workflow N8N personnalisé créé avec ID:', workflow.id, 'pour:', userEmail);
+    console.log('✅ Workflow créé avec succès!');
+    console.log(`🆔 ID du workflow: ${workflow.id}`);
+    console.log(`📧 Nom du workflow: ${workflow.name}`);
 
     // Activer le workflow
-    console.log('🔄 Activation du workflow N8N personnalisé...');
+    console.log('🔄 Activation du workflow...');
     const activateResponse = await fetch(`${N8N_BASE_URL}/rest/workflows/${workflow.id}/activate`, {
       method: 'POST',
       headers: {
@@ -310,32 +340,47 @@ Tu es l'assistant IA personnel de ${userEmail}. Tu réponds automatiquement aux 
       }
     });
 
+    console.log(`🔌 Réponse activation: ${activateResponse.status} ${activateResponse.statusText}`);
+
     if (!activateResponse.ok) {
       const errorText = await activateResponse.text();
-      console.error('❌ Erreur activation workflow N8N:', errorText);
+      console.error('❌ Erreur activation:', errorText);
       throw new Error(`Erreur activation workflow: ${activateResponse.statusText} - ${errorText}`);
     }
 
-    console.log('✅ Workflow N8N personnalisé activé avec succès pour:', userEmail);
+    console.log('✅ Workflow activé avec succès!');
 
-    return new Response(JSON.stringify({
+    const responseData = {
       success: true,
       workflow_id: workflow.id,
-      webhook_url: `${N8N_BASE_URL}/webhook/${webhookPath}`,
+      webhook_url: webhookUrl,
       folder_id: NORBERT_FOLDER_ID,
       client_email: userEmail,
       message: `Workflow N8N personnalisé créé et activé pour ${userEmail}`
-    }), {
+    };
+
+    console.log('📤 Réponse finale:', JSON.stringify(responseData, null, 2));
+    console.log('🎯 === FIN FONCTION create-n8n-workflow ===');
+
+    return new Response(JSON.stringify(responseData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error('❌ ERREUR CRITIQUE création workflow N8N personnalisé:', error);
-    return new Response(JSON.stringify({
+    console.error('❌ ERREUR CRITIQUE create-n8n-workflow:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Message:', error.message);
+    
+    const errorResponse = {
       success: false,
       error: error.message,
-      stack: error.stack
-    }), {
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('📤 Réponse d\'erreur:', JSON.stringify(errorResponse, null, 2));
+    
+    return new Response(JSON.stringify(errorResponse), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

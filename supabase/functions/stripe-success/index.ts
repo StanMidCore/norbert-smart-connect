@@ -8,14 +8,15 @@ const corsHeaders = {
 };
 
 const createN8NWorkflowForClient = async (userEmail: string, userName: string) => {
-  console.log(`🚀 Création du workflow N8N personnalisé pour: ${userEmail}`);
+  console.log(`🚀 DÉBUT création workflow N8N pour: ${userEmail}`);
   
   try {
-    // Appeler la fonction create-n8n-workflow avec les détails du client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    console.log(`📡 Appel fonction create-n8n-workflow pour: ${userEmail}`);
+    
     const { data: workflowData, error: workflowError } = await supabase.functions.invoke('create-n8n-workflow', {
       body: {
         userEmail: userEmail,
@@ -23,15 +24,18 @@ const createN8NWorkflowForClient = async (userEmail: string, userName: string) =
       }
     });
 
+    console.log(`📊 Réponse create-n8n-workflow:`, JSON.stringify(workflowData, null, 2));
+    
     if (workflowError) {
-      console.error('❌ Erreur création workflow personnalisé:', workflowError);
+      console.error('❌ Erreur création workflow personnalisé:', JSON.stringify(workflowError, null, 2));
       throw workflowError;
     }
 
-    console.log('✅ Workflow N8N personnalisé créé:', workflowData);
+    console.log('✅ Workflow N8N personnalisé créé avec succès:', workflowData);
     return workflowData;
   } catch (error) {
-    console.error('❌ Erreur complète lors de la création du workflow personnalisé:', error);
+    console.error('❌ Erreur CRITIQUE lors de la création du workflow personnalisé:', error);
+    console.error('❌ Stack trace:', error.stack);
     throw error;
   }
 };
@@ -130,16 +134,23 @@ serve(async (req) => {
         await cleanupChannelsForUser(supabase, user.id, updatedSignup.email);
       }
 
-      // 🎯 CRÉER LE WORKFLOW N8N PERSONNALISÉ POUR CE CLIENT
+      // 🎯 CRÉER LE WORKFLOW N8N PERSONNALISÉ POUR CE CLIENT - AVEC LOGS DÉTAILLÉS
+      console.log('🚀 === DÉBUT CRÉATION WORKFLOW N8N ===');
+      console.log(`📧 Email client: ${updatedSignup.email}`);
+      console.log(`👤 Nom client: ${updatedSignup.email.split('@')[0]}`);
+      
       try {
-        console.log('🚀 Début de la création du workflow N8N personnalisé...');
-        const userName = updatedSignup.email.split('@')[0]; // Utiliser la partie avant @
+        const userName = updatedSignup.email.split('@')[0];
+        console.log(`🔄 Appel createN8NWorkflowForClient avec: ${updatedSignup.email}, ${userName}`);
+        
         const workflowResult = await createN8NWorkflowForClient(updatedSignup.email, userName);
         
-        console.log('✅ Workflow N8N personnalisé créé:', workflowResult);
+        console.log('✅ Workflow N8N personnalisé créé avec succès:', JSON.stringify(workflowResult, null, 2));
         
         // Sauvegarder l'ID du workflow et l'URL du webhook dans la DB
-        if (workflowResult.success && user?.id) {
+        if (workflowResult?.success && workflowResult?.workflow_id && user?.id) {
+          console.log(`💾 Sauvegarde workflow_id: ${workflowResult.workflow_id} pour user: ${user.id}`);
+          
           const { error: workflowUpdateError } = await supabase
             .from('users')
             .update({
@@ -150,14 +161,23 @@ serve(async (req) => {
           if (workflowUpdateError) {
             console.error('❌ Erreur sauvegarde workflow_id:', workflowUpdateError);
           } else {
-            console.log('✅ Workflow ID sauvegardé pour l\'utilisateur');
+            console.log('✅ Workflow ID sauvegardé dans la base de données');
           }
+        } else {
+          console.warn('⚠️ Impossible de sauvegarder le workflow_id:', {
+            success: workflowResult?.success,
+            workflow_id: workflowResult?.workflow_id,
+            user_id: user?.id
+          });
         }
         
       } catch (workflowErr) {
-        console.error('❌ Erreur workflow N8N personnalisé:', workflowErr);
+        console.error('❌ Erreur CRITIQUE workflow N8N personnalisé:', workflowErr);
+        console.error('❌ Stack trace workflow:', workflowErr.stack);
         // Ne pas bloquer la redirection même si le workflow échoue
       }
+      
+      console.log('🚀 === FIN CRÉATION WORKFLOW N8N ===');
 
       // Rediriger vers l'application avec un token ou session
       const redirectUrl = `${req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co'}/?payment_success=true&email=${encodeURIComponent(updatedSignup.email)}`;
