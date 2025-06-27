@@ -26,6 +26,25 @@ export const useNorbertUser = () => {
     }
   };
 
+  const createWorkflowForNewUser = async (userEmail: string, userName: string) => {
+    try {
+      const { data: workflowData, error: workflowError } = await supabase.functions.invoke('create-n8n-workflow', {
+        body: {
+          userEmail: userEmail,
+          userName: userName
+        }
+      });
+
+      if (workflowError) {
+        console.error('Erreur création workflow N8N:', workflowError);
+      } else {
+        console.log('Workflow N8N créé:', workflowData);
+      }
+    } catch (workflowErr) {
+      console.error('Erreur workflow N8N:', workflowErr);
+    }
+  };
+
   const createOrGetUser = async (email: string, phoneNumber?: string) => {
     setLoading(true);
     setError(null);
@@ -64,22 +83,7 @@ export const useNorbertUser = () => {
       await cleanupChannelsForNewUser(data.user.id);
       
       // Créer le workflow N8N pour ce nouvel utilisateur
-      try {
-        const { data: workflowData, error: workflowError } = await supabase.functions.invoke('create-n8n-workflow', {
-          body: {
-            userEmail: data.user.email,
-            userName: data.user.email.split('@')[0]
-          }
-        });
-
-        if (workflowError) {
-          console.error('Erreur création workflow N8N:', workflowError);
-        } else {
-          console.log('Workflow N8N créé:', workflowData);
-        }
-      } catch (workflowErr) {
-        console.error('Erreur workflow N8N:', workflowErr);
-      }
+      await createWorkflowForNewUser(data.user.email, data.user.email.split('@')[0]);
       
       setUser(data.user);
       return data.user;
@@ -104,6 +108,9 @@ export const useNorbertUser = () => {
         
         // Nettoyer les canaux pour ce nouvel utilisateur
         await cleanupChannelsForNewUser(newUser.id);
+        
+        // Créer le workflow N8N
+        await createWorkflowForNewUser(newUser.email, newUser.email.split('@')[0]);
         
         setUser(newUser);
         return newUser;

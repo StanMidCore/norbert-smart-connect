@@ -99,7 +99,7 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
         {/* Header */}
         <div className="text-center">
           <div className="w-16 h-16 bg-header rounded-full flex items-center justify-center mx-auto mb-4">
-            <User className="h-8 w-8 text-header" />
+            <User className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-main">Configurez votre IA</h1>
           <p className="text-main opacity-70 mt-2">
@@ -239,7 +239,8 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
           <Button 
             onClick={handleComplete}
             disabled={loading}
-            className="w-full bg-header hover:bg-header/90 text-header py-6 text-lg"
+            className="w-full py-6 text-lg text-white"
+            style={{ backgroundColor: 'var(--header-background)' }}
           >
             {loading ? (
               <>
@@ -253,7 +254,8 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
 
           <Button 
             onClick={handleGoToDashboard}
-            className="w-full py-6 text-lg bg-cta hover:bg-cta/90 text-white"
+            className="w-full py-6 text-lg text-white"
+            style={{ backgroundColor: 'var(--cta-button)' }}
           >
             Accéder au Dashboard
             <ArrowRight className="ml-2 h-5 w-5" />

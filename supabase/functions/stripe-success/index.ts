@@ -22,7 +22,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Récupérer les détails de la session Stripe
-    const stripeKey = Deno.env.get('pk_live_KTfEvs7v5CNVY8MjKuPNUFma');
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
     const stripeResponse = await fetch(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, {
       headers: {
         'Authorization': `Bearer ${stripeKey}`,
@@ -58,22 +58,54 @@ serve(async (req) => {
       // Créer le compte utilisateur final
       const { data: user, error: userError } = await supabase
         .from('users')
-        .insert({
+        .upsert({
           email: updatedSignup.email,
           autopilot: true
         })
         .select()
         .single();
 
-      if (userError) {
+      if (userError && userError.code !== '23505') { // Ignorer erreur duplicate
         console.error('Erreur création utilisateur:', userError);
-        // Ne pas faire échouer si l'utilisateur existe déjà
       }
 
-      console.log('Utilisateur créé:', user?.id);
+      console.log('Utilisateur créé/mis à jour:', user?.id || 'existant');
 
-      // TODO: Ici, appeler les APIs pour créer le compte Unipile et workflow N8N
-      console.log('TODO: Créer compte Unipile et workflow N8N pour:', updatedSignup.email);
+      // Nettoyer les canaux pour ce nouvel utilisateur
+      if (user?.id) {
+        try {
+          const { error: cleanupError } = await supabase
+            .from('channels')
+            .delete()
+            .eq('user_id', user.id);
+
+          if (cleanupError) {
+            console.error('Erreur nettoyage canaux:', cleanupError);
+          } else {
+            console.log('Canaux nettoyés pour:', user.email);
+          }
+        } catch (cleanupErr) {
+          console.error('Erreur lors du nettoyage:', cleanupErr);
+        }
+      }
+
+      // Créer le workflow N8N
+      try {
+        const { data: workflowData, error: workflowError } = await supabase.functions.invoke('create-n8n-workflow', {
+          body: {
+            userEmail: updatedSignup.email,
+            userName: updatedSignup.email.split('@')[0]
+          }
+        });
+
+        if (workflowError) {
+          console.error('Erreur création workflow N8N:', workflowError);
+        } else {
+          console.log('Workflow N8N créé avec succès:', workflowData);
+        }
+      } catch (workflowErr) {
+        console.error('Erreur workflow N8N:', workflowErr);
+      }
 
       // Rediriger vers l'application avec un token ou session
       const redirectUrl = `${req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co'}/?payment_success=true&email=${encodeURIComponent(updatedSignup.email)}`;
