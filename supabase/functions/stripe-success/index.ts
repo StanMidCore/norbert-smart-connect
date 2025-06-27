@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 
@@ -11,6 +10,8 @@ const N8N_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2N2E5NWQ2NS
 const N8N_BASE_URL = 'https://norbert.n8n.cloud/api/v1';
 
 const createN8NWorkflow = async (userEmail: string, userName: string) => {
+  console.log(`🚀 Création du workflow N8N pour: ${userEmail}`);
+  
   const workflowData = {
     name: `Norbert Workflow - ${userName}`,
     nodes: [
@@ -210,61 +211,101 @@ const createN8NWorkflow = async (userEmail: string, userName: string) => {
     versionId: "1"
   };
 
-  // Créer le workflow
-  const createResponse = await fetch(`${N8N_BASE_URL}/workflows`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${N8N_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(workflowData)
-  });
-
-  if (!createResponse.ok) {
-    throw new Error(`Erreur création workflow: ${createResponse.statusText}`);
-  }
-
-  const workflow = await createResponse.json();
-
-  // Activer le workflow
-  const activateResponse = await fetch(`${N8N_BASE_URL}/workflows/${workflow.id}/activate`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${N8N_API_KEY}`,
-      'Content-Type': 'application/json'
-    }
-  });
-
-  if (!activateResponse.ok) {
-    throw new Error(`Erreur activation workflow: ${activateResponse.statusText}`);
-  }
-
-  // Sauvegarder sur le serveur dans Personal/AGENCE IA/NORBERT/CLIENTS
   try {
-    const saveResponse = await fetch('https://norbert.n8n.cloud/webhook/save-client-workflow', {
+    // Créer le workflow
+    console.log('📝 Création du workflow N8N...');
+    const createResponse = await fetch(`${N8N_BASE_URL}/workflows`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${N8N_API_KEY}`,
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        workflow_id: workflow.id,
-        user_email: userEmail,
-        user_name: userName,
-        webhook_url: `https://norbert.n8n.cloud/webhook/norbert-webhook`,
-        folder_path: 'Personal/AGENCE IA/NORBERT/CLIENTS',
-        created_at: new Date().toISOString()
-      }),
+      body: JSON.stringify(workflowData)
     });
 
-    console.log('Workflow sauvegardé sur le serveur:', saveResponse.ok ? 'Succès' : 'Échec');
-  } catch (saveError) {
-    console.error('Erreur sauvegarde serveur:', saveError);
-  }
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text();
+      console.error('❌ Erreur création workflow:', errorText);
+      throw new Error(`Erreur création workflow: ${createResponse.statusText}`);
+    }
 
-  return {
-    workflow_id: workflow.id,
-    webhook_url: `https://norbert.n8n.cloud/webhook/norbert-webhook`
-  };
+    const workflow = await createResponse.json();
+    console.log('✅ Workflow créé avec ID:', workflow.id);
+
+    // Activer le workflow
+    console.log('🔄 Activation du workflow...');
+    const activateResponse = await fetch(`${N8N_BASE_URL}/workflows/${workflow.id}/activate`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${N8N_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!activateResponse.ok) {
+      const errorText = await activateResponse.text();
+      console.error('❌ Erreur activation workflow:', errorText);
+      throw new Error(`Erreur activation workflow: ${activateResponse.statusText}`);
+    }
+
+    console.log('✅ Workflow activé avec succès');
+
+    // Sauvegarder sur le serveur dans Personal/AGENCE IA/NORBERT/CLIENTS
+    console.log('💾 Sauvegarde du workflow sur le serveur...');
+    try {
+      const saveResponse = await fetch('https://norbert.n8n.cloud/webhook/save-client-workflow', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          workflow_id: workflow.id,
+          user_email: userEmail,
+          user_name: userName,
+          webhook_url: `https://norbert.n8n.cloud/webhook/norbert-webhook`,
+          folder_path: 'Personal/AGENCE IA/NORBERT/CLIENTS',
+          created_at: new Date().toISOString(),
+          workflow_data: workflowData
+        }),
+      });
+
+      if (saveResponse.ok) {
+        console.log('✅ Workflow sauvegardé sur le serveur avec succès');
+      } else {
+        console.error('❌ Erreur sauvegarde serveur:', await saveResponse.text());
+      }
+    } catch (saveError) {
+      console.error('❌ Erreur lors de la sauvegarde serveur:', saveError);
+    }
+
+    return {
+      workflow_id: workflow.id,
+      webhook_url: `https://norbert.n8n.cloud/webhook/norbert-webhook`
+    };
+  } catch (error) {
+    console.error('❌ Erreur complète lors de la création du workflow:', error);
+    throw error;
+  }
+};
+
+const cleanupChannelsForUser = async (supabase: any, userId: string, userEmail: string) => {
+  console.log(`🧹 Nettoyage des canaux pour l'utilisateur: ${userEmail}`);
+  
+  try {
+    // Supprimer tous les canaux existants pour cet utilisateur
+    const { error: deleteError } = await supabase
+      .from('channels')
+      .delete()
+      .eq('user_id', userId);
+
+    if (deleteError) {
+      console.error('❌ Erreur suppression canaux:', deleteError);
+    } else {
+      console.log('✅ Canaux nettoyés avec succès');
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors du nettoyage des canaux:', error);
+  }
 };
 
 serve(async (req) => {
@@ -272,7 +313,10 @@ serve(async (req) => {
   const sessionId = url.searchParams.get('session_id');
   const signupId = url.searchParams.get('signup_id');
 
+  console.log('🔄 Traitement du paiement Stripe réussi:', { sessionId, signupId });
+
   if (!sessionId || !signupId) {
+    console.error('❌ Paramètres manquants');
     return new Response('Paramètres manquants', { status: 400 });
   }
 
@@ -294,7 +338,7 @@ serve(async (req) => {
     }
 
     const session = await stripeResponse.json();
-    console.log('Session Stripe récupérée:', session);
+    console.log('💳 Session Stripe récupérée:', session.payment_status);
 
     if (session.payment_status === 'paid' || session.mode === 'subscription') {
       // Marquer le paiement comme complété
@@ -311,9 +355,11 @@ serve(async (req) => {
         .single();
 
       if (updateError) {
-        console.error('Erreur mise à jour signup:', updateError);
+        console.error('❌ Erreur mise à jour signup:', updateError);
         throw updateError;
       }
+
+      console.log('✅ Signup mis à jour avec succès');
 
       // Créer le compte utilisateur final
       const { data: user, error: userError } = await supabase
@@ -326,39 +372,30 @@ serve(async (req) => {
         .single();
 
       if (userError && userError.code !== '23505') { // Ignorer erreur duplicate
-        console.error('Erreur création utilisateur:', userError);
+        console.error('❌ Erreur création utilisateur:', userError);
+      } else {
+        console.log('✅ Utilisateur créé/mis à jour:', user?.id || 'existant');
       }
-
-      console.log('Utilisateur créé/mis à jour:', user?.id || 'existant');
 
       // Nettoyer les canaux pour ce nouvel utilisateur
       if (user?.id) {
-        try {
-          const { error: cleanupError } = await supabase
-            .from('channels')
-            .delete()
-            .eq('user_id', user.id);
-
-          if (cleanupError) {
-            console.error('Erreur nettoyage canaux:', cleanupError);
-          } else {
-            console.log('Canaux nettoyés pour:', user.email);
-          }
-        } catch (cleanupErr) {
-          console.error('Erreur lors du nettoyage:', cleanupErr);
-        }
+        await cleanupChannelsForUser(supabase, user.id, updatedSignup.email);
       }
 
       // Créer le workflow N8N et le sauvegarder sur le serveur
       try {
+        console.log('🚀 Début de la création du workflow N8N...');
         const workflowResult = await createN8NWorkflow(updatedSignup.email, updatedSignup.email.split('@')[0]);
-        console.log('Workflow N8N créé et sauvegardé:', workflowResult);
+        console.log('✅ Workflow N8N créé et sauvegardé avec succès:', workflowResult);
       } catch (workflowErr) {
-        console.error('Erreur workflow N8N:', workflowErr);
+        console.error('❌ Erreur workflow N8N:', workflowErr);
+        // Ne pas bloquer la redirection même si le workflow échoue
       }
 
       // Rediriger vers l'application avec un token ou session
       const redirectUrl = `${req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co'}/?payment_success=true&email=${encodeURIComponent(updatedSignup.email)}`;
+      
+      console.log('🔄 Redirection vers:', redirectUrl);
       
       return new Response(null, {
         status: 302,
@@ -372,7 +409,7 @@ serve(async (req) => {
     throw new Error('Paiement non confirmé');
 
   } catch (error) {
-    console.error('Erreur stripe-success:', error);
+    console.error('❌ Erreur stripe-success:', error);
     
     // Rediriger vers une page d'erreur
     const errorUrl = `${req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co'}/?payment_error=true`;
