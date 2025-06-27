@@ -7,7 +7,8 @@ const corsHeaders = {
 };
 
 const N8N_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2N2E5NWQ2NS1kZTI5LTRlN2EtYjQxZC0yYjhjZTdiYTQwYzgiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzUxMDExNzgxfQ.k4c-dAmKJpK5aUk2idyW1HFNmayS3xba4PrbUGa88CY';
-const N8N_BASE_URL = 'https://n8n.srv784558.hstgr.cloud/api/v1';
+const N8N_BASE_URL = 'https://n8n.srv784558.hstgr.cloud';
+const NORBERT_FOLDER_ID = 'uO7pivHjhurjrT2k';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,9 +19,10 @@ serve(async (req) => {
     const { userEmail, userName } = await req.json();
     console.log(`🚀 CRÉATION WORKFLOW N8N - Email: ${userEmail}, Nom: ${userName}`);
 
-    // Workflow N8N EXACT fourni par l'utilisateur
+    // Workflow N8N avec folder ID
     const workflowData = {
       "name": `Agent IA - Norbert - ${userName}`,
+      "folderId": NORBERT_FOLDER_ID,
       "nodes": [
         {
           "parameters": {
@@ -257,7 +259,7 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
           ]
         }
       },
-      "active": true,
+      "active": false,
       "settings": {
         "executionOrder": "v1"
       },
@@ -269,13 +271,12 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
         }
       ],
       "triggerCount": 1,
-      "updatedAt": new Date().toISOString(),
-      "versionId": "1"
+      "versionId": null
     };
 
-    // Créer le workflow
-    console.log('📝 Création du workflow N8N...');
-    const createResponse = await fetch(`${N8N_BASE_URL}/workflows`, {
+    // Créer le workflow avec l'API REST N8N
+    console.log('📝 Création du workflow N8N dans le dossier Norbert...');
+    const createResponse = await fetch(`${N8N_BASE_URL}/rest/workflows`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${N8N_API_KEY}`,
@@ -291,11 +292,11 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
     }
 
     const workflow = await createResponse.json();
-    console.log('✅ Workflow N8N créé avec ID:', workflow.id);
+    console.log('✅ Workflow N8N créé avec ID:', workflow.id, 'dans le dossier:', NORBERT_FOLDER_ID);
 
     // Activer le workflow
     console.log('🔄 Activation du workflow N8N...');
-    const activateResponse = await fetch(`${N8N_BASE_URL}/workflows/${workflow.id}/activate`, {
+    const activateResponse = await fetch(`${N8N_BASE_URL}/rest/workflows/${workflow.id}/activate`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${N8N_API_KEY}`,
@@ -309,87 +310,14 @@ Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds 
       throw new Error(`Erreur activation workflow: ${activateResponse.statusText} - ${errorText}`);
     }
 
-    console.log('✅ Workflow N8N activé avec succès');
-
-    // SAUVEGARDE PRIORITAIRE sur le serveur VPS dans Personal/AGENCE IA/NORBERT/CLIENTS
-    console.log('💾 DÉBUT Sauvegarde workflow sur serveur VPS Personal/AGENCE IA/NORBERT/CLIENTS...');
-    const savePayload = {
-      workflow_id: workflow.id,
-      user_email: userEmail,
-      user_name: userName,
-      webhook_url: `https://n8n.srv784558.hstgr.cloud/webhook/${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`,
-      folder_path: 'Personal/AGENCE IA/NORBERT/CLIENTS',
-      created_at: new Date().toISOString(),
-      workflow_data: workflowData,
-      workflow_json: JSON.stringify(workflowData, null, 2),
-      file_name: `${userEmail}_workflow_${workflow.id}.json`
-    };
-
-    // ESSAYER TOUS LES ENDPOINTS DE SAUVEGARDE POSSIBLES
-    const saveEndpoints = [
-      'https://n8n.srv784558.hstgr.cloud/webhook/save-client-workflow',
-      'https://n8n.srv784558.hstgr.cloud/webhook/save-workflow', 
-      'https://n8n.srv784558.hstgr.cloud/api/webhook/save-client',
-      'https://n8n.srv784558.hstgr.cloud/webhook/file-save',
-      'https://n8n.srv784558.hstgr.cloud/api/v1/save-client',
-      'https://n8n.srv784558.hstgr.cloud/webhook/client-save',
-      'https://n8n.srv784558.hstgr.cloud/webhook/norbert-save-client',
-      'https://n8n.srv784558.hstgr.cloud/api/save-client-workflow'
-    ];
-
-    let saveSuccess = false;
-    let lastError = null;
-
-    for (const endpoint of saveEndpoints) {
-      try {
-        console.log(`📁 Tentative ${saveEndpoints.indexOf(endpoint) + 1}/${saveEndpoints.length} - Endpoint: ${endpoint}`);
-        
-        const saveResponse = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${N8N_API_KEY}`,
-            'X-API-KEY': N8N_API_KEY
-          },
-          body: JSON.stringify(savePayload),
-        });
-
-        console.log(`📡 Statut réponse ${endpoint}: ${saveResponse.status}`);
-        
-        if (saveResponse.ok) {
-          const saveResult = await saveResponse.text();
-          console.log(`✅ SUCCÈS Sauvegarde sur ${endpoint}:`, saveResult);
-          saveSuccess = true;
-          break;
-        } else {
-          const errorText = await saveResponse.text();
-          console.warn(`⚠️ Échec ${endpoint} (${saveResponse.status}):`, errorText);
-          lastError = errorText;
-        }
-      } catch (endpointError) {
-        console.warn(`⚠️ Erreur réseau ${endpoint}:`, endpointError.message);
-        lastError = endpointError.message;
-      }
-    }
-
-    // RÉSULTAT FINAL
-    if (saveSuccess) {
-      console.log('🎉 WORKFLOW CRÉÉ, ACTIVÉ ET SAUVEGARDÉ AVEC SUCCÈS dans Personal/AGENCE IA/NORBERT/CLIENTS');
-    } else {
-      console.error('❌ ÉCHEC SAUVEGARDE - Workflow créé mais non sauvegardé sur le serveur VPS');
-      console.error('❌ Dernière erreur:', lastError);
-    }
+    console.log('✅ Workflow N8N activé avec succès dans le dossier Norbert');
 
     return new Response(JSON.stringify({
       success: true,
       workflow_id: workflow.id,
-      webhook_url: `https://n8n.srv784558.hstgr.cloud/webhook/${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`,
-      saved_to_server: saveSuccess,
-      save_location: saveSuccess ? 'Personal/AGENCE IA/NORBERT/CLIENTS' : null,
-      message: saveSuccess 
-        ? 'Workflow N8N créé, activé et sauvegardé sur le serveur VPS avec succès'
-        : 'Workflow N8N créé et activé, mais sauvegarde serveur échouée',
-      last_save_error: saveSuccess ? null : lastError
+      webhook_url: `${N8N_BASE_URL}/webhook/${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`,
+      folder_id: NORBERT_FOLDER_ID,
+      message: 'Workflow N8N créé et activé dans le dossier Norbert avec succès'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
