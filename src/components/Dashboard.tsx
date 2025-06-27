@@ -1,301 +1,257 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  MessageSquare, 
-  Clock, 
-  User, 
-  Phone, 
-  Mail, 
-  AlertTriangle,
-  CheckCircle,
-  Search,
-  Filter,
-  Bell,
-  Settings,
-  Menu
-} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Bell, MessageSquare, Users, Calendar, Settings, Phone, Zap, TrendingUp, Clock, CheckCircle } from 'lucide-react';
 
-interface Message {
-  id: string;
-  from_name: string;
-  from_number: string;
-  body_preview: string;
-  timestamp: string;
-  urgent: boolean;
-  requires_response: boolean;
-  handled_by: 'IA' | 'human';
-  response_status: 'pending' | 'sent' | 'failed';
-  channel_type: 'whatsapp' | 'sms' | 'email' | 'facebook' | 'instagram';
+interface DashboardProps {
+  onNavigate: (screen: string) => void;
+  onClientDetail: (clientId: string) => void;
 }
 
-interface Client {
-  id: string;
-  name: string;
-  contact: string;
-  channel: string;
-  last_contact: string;
-  message_count: number;
-  status: 'active' | 'pending' | 'resolved';
-}
-
-const Dashboard = () => {
-  const [messages, setMessages] = useState<Message[]>([
+const Dashboard = ({ onNavigate, onClientDetail }: DashboardProps) => {
+  const [isSubscriptionActive] = useState(true);
+  const [isWorkflowActive] = useState(true);
+  
+  const [profile] = useState({
+    name: 'Stan Normand',
+    company: 'Stokn',
+    position: 'CEO',
+  });
+  
+  const [channels] = useState([
     {
-      id: '1',
-      from_name: 'Marie Dubois',
-      from_number: '+33612345678',
-      body_preview: 'Bonjour, j\'ai une fuite d\'eau dans ma salle de bain, pouvez-vous intervenir rapidement ?',
-      timestamp: '2024-01-15T10:30:00Z',
-      urgent: true,
-      requires_response: true,
-      handled_by: 'IA',
-      response_status: 'sent',
-      channel_type: 'whatsapp'
+      name: 'WhatsApp',
+      isConnected: true,
+      lastMessage: 'Bonjour, comment puis-je vous aider ?',
+      icon: '📱',
     },
     {
-      id: '2',
-      from_name: 'Pierre Martin',
-      from_number: 'pierre.martin@email.com',
-      body_preview: 'Demande de devis pour installation d\'une nouvelle cuisine',
-      timestamp: '2024-01-15T09:15:00Z',
-      urgent: false,
-      requires_response: true,
-      handled_by: 'IA',
-      response_status: 'pending',
-      channel_type: 'email'
-    }
-  ]);
-
-  const [clients, setClients] = useState<Client[]>([
-    {
-      id: '1',
-      name: 'Marie Dubois',
-      contact: '+33612345678',
-      channel: 'WhatsApp',
-      last_contact: '2024-01-15T10:30:00Z',
-      message_count: 3,
-      status: 'active'
+      name: 'Email',
+      isConnected: true,
+      lastMessage: 'Merci pour votre message.',
+      icon: '✉️',
     },
     {
-      id: '2',
-      name: 'Pierre Martin',
-      contact: 'pierre.martin@email.com',
-      channel: 'Email',
-      last_contact: '2024-01-15T09:15:00Z',
-      message_count: 1,
-      status: 'pending'
-    }
+      name: 'Instagram',
+      isConnected: false,
+      lastMessage: null,
+      icon: '📸',
+    },
   ]);
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'urgent' | 'pending'>('all');
-
-  const filteredMessages = messages.filter(message => {
-    const matchesSearch = message.from_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         message.body_preview.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (selectedFilter === 'urgent') return matchesSearch && message.urgent;
-    if (selectedFilter === 'pending') return matchesSearch && message.response_status === 'pending';
-    return matchesSearch;
+  
+  const [stats] = useState({
+    totalMessages: 47,
+    responseRate: 98,
+    avgResponseTime: '2.3 min',
+    activeClients: 12
   });
 
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const [recentMessages] = useState([
+    {
+      id: '1',
+      client: 'Marie Dubois',
+      message: 'Bonjour, je souhaiterais un devis pour...',
+      time: '14:23',
+      status: 'new',
+      platform: 'email'
+    },
+    {
+      id: '2', 
+      client: 'Jean Martin',
+      message: 'Merci pour votre réponse rapide !',
+      time: '13:45',
+      status: 'responded',
+      platform: 'whatsapp'
+    },
+    {
+      id: '3',
+      client: 'Sophie Laurent',
+      message: 'Pouvez-vous me rappeler demain ?',
+      time: '12:30',
+      status: 'urgent',
+      platform: 'email'
+    }
+  ]);
+
+  const handleClientClick = (clientId: string) => {
+    onClientDetail(clientId);
   };
 
-  const getChannelIcon = (channel: string) => {
-    switch (channel) {
-      case 'whatsapp': return '💬';
-      case 'email': return '📧';
-      case 'sms': return '📱';
-      case 'facebook': return '📘';
-      case 'instagram': return '📷';
-      default: return '💬';
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'new':
+        return <Badge className="bg-blue-500 text-white">Nouveau</Badge>;
+      case 'responded':
+        return <Badge className="bg-status-success text-white">Répondu</Badge>;
+      case 'urgent':
+        return <Badge className="bg-alert text-white">Urgent</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
-  const urgentMessagesCount = messages.filter(m => m.urgent && m.response_status === 'pending').length;
-  const pendingMessagesCount = messages.filter(m => m.response_status === 'pending').length;
-  const totalMessagesCount = messages.length;
+  const getPlatformIcon = (platform: string) => {
+    switch (platform) {
+      case 'whatsapp':
+        return '📱';
+      case 'email':
+        return '✉️';
+      case 'instagram':
+        return '📸';
+      default:
+        return '💬';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-app-bg">
       {/* Header */}
-      <div className="bg-header text-header px-4 py-3 pt-safe-offset-12 sm:pt-3">
+      <div className="bg-header text-white p-4 pt-safe-offset-12">
         <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold">Dashboard Norbert</h1>
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-cta rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">N</span>
+            <Bell className="h-6 w-6" />
+            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+              <span className="text-sm font-medium">SN</span>
             </div>
-            <div>
-              <h1 className="text-lg font-semibold">Dashboard Norbert</h1>
-              <p className="text-sm opacity-90">Assistant IA activé</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="icon" className="text-header hover:bg-white/10">
-              <Bell className="h-5 w-5" />
-              {urgentMessagesCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-alert text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {urgentMessagesCount}
-                </span>
-              )}
-            </Button>
-            <Button variant="ghost" size="icon" className="text-header hover:bg-white/10">
-              <Settings className="h-5 w-5" />
-            </Button>
           </div>
         </div>
       </div>
 
-      <div className="p-4 pb-safe-offset-6 space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-3">
-          <Card className="border-none shadow-sm">
+      {/* Stats Cards */}
+      <div className="p-4 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <Card>
             <CardContent className="p-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-main">{totalMessagesCount}</div>
-                <div className="text-sm text-gray-600">Messages</div>
+              <div className="flex items-center space-x-2">
+                <MessageSquare className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="text-2xl font-bold text-main">{stats.totalMessages}</p>
+                  <p className="text-sm text-main opacity-70">Messages reçus</p>
+                </div>
               </div>
             </CardContent>
           </Card>
-          
-          <Card className="border-none shadow-sm">
+
+          <Card>
             <CardContent className="p-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-alert">{pendingMessagesCount}</div>
-                <div className="text-sm text-gray-600">En attente</div>
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="h-5 w-5 text-status-success" />
+                <div>
+                  <p className="text-2xl font-bold text-main">{stats.responseRate}%</p>
+                  <p className="text-sm text-main opacity-70">Taux de réponse</p>
+                </div>
               </div>
             </CardContent>
           </Card>
-          
-          <Card className="border-none shadow-sm">
+
+          <Card>
             <CardContent className="p-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-status-success">{clients.length}</div>
-                <div className="text-sm text-gray-600">Clients</div>
+              <div className="flex items-center space-x-2">
+                <Clock className="h-5 w-5 text-orange-600" />
+                <div>
+                  <p className="text-2xl font-bold text-main">{stats.avgResponseTime}</p>
+                  <p className="text-sm text-main opacity-70">Temps moyen</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <Users className="h-5 w-5 text-purple-600" />
+                <div>
+                  <p className="text-2xl font-bold text-main">{stats.activeClients}</p>
+                  <p className="text-sm text-main opacity-70">Clients actifs</p>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Search and Filters */}
-        <div className="space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Rechercher un message ou un client..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 border-gray-200"
-            />
-          </div>
-          
-          <div className="flex space-x-2">
-            <Button
-              variant={selectedFilter === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedFilter('all')}
-              className={selectedFilter === 'all' ? 'bg-header text-header' : ''}
-            >
-              Tous
-            </Button>
-            <Button
-              variant={selectedFilter === 'urgent' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedFilter('urgent')}
-              className={selectedFilter === 'urgent' ? 'bg-alert text-white' : ''}
-            >
-              <AlertTriangle className="h-4 w-4 mr-1" />
-              Urgent
-            </Button>
-            <Button
-              variant={selectedFilter === 'pending' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedFilter('pending')}
-              className={selectedFilter === 'pending' ? 'bg-header text-header' : ''}
-            >
-              <Clock className="h-4 w-4 mr-1" />
-              En attente
-            </Button>
-          </div>
-        </div>
-
-        {/* Messages List */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-main">Messages récents</h2>
-          
-          <ScrollArea className="h-96">
-            <div className="space-y-3">
-              {filteredMessages.map((message) => (
-                <Card key={message.id} className="border-none shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <span className="text-lg">{getChannelIcon(message.channel_type)}</span>
-                          <span className="font-medium text-main">{message.from_name}</span>
-                          <span className="text-sm text-gray-500">{message.from_number}</span>
-                          {message.urgent && (
-                            <Badge className="bg-alert text-white text-xs">
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              Urgent
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        <p className="text-sm text-gray-700 line-clamp-2 mb-2">
-                          {message.body_preview}
-                        </p>
-                        
-                        <div className="flex items-center justify-between text-xs text-gray-500">
-                          <div className="flex items-center space-x-3">
-                            <span>{formatTimestamp(message.timestamp)}</span>
-                            <span>Géré par {message.handled_by}</span>
-                          </div>
-                          
-                          <div className="flex items-center space-x-1">
-                            {message.response_status === 'sent' && (
-                              <CheckCircle className="h-4 w-4 text-status-success" />
-                            )}
-                            {message.response_status === 'pending' && (
-                              <Clock className="h-4 w-4 text-alert" />
-                            )}
-                            {message.response_status === 'failed' && (
-                              <AlertTriangle className="h-4 w-4 text-alert" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </ScrollArea>
-        </div>
+        {/* Recent Messages */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-main">Messages récents</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentMessages.map((message) => (
+              <div 
+                key={message.id}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"
+                onClick={() => handleClientClick(message.id)}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="text-xl">{getPlatformIcon(message.platform)}</div>
+                  <div>
+                    <p className="font-medium text-main">{message.client}</p>
+                    <p className="text-sm text-main opacity-70 truncate max-w-48">
+                      {message.message}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {getStatusBadge(message.status)}
+                  <span className="text-xs text-main opacity-70">{message.time}</span>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button className="bg-cta hover:bg-cta/90 text-white py-6">
-            <Phone className="h-5 w-5 mr-2" />
-            Appeler client
+        <div className="grid grid-cols-2 gap-4">
+          <Button 
+            onClick={() => onNavigate('calendar')}
+            className="h-16 bg-white border border-gray-200 text-main hover:bg-gray-50 flex flex-col items-center justify-center space-y-1"
+          >
+            <Calendar className="h-6 w-6" />
+            <span className="text-sm">Calendrier</span>
           </Button>
-          <Button variant="outline" className="py-6 border-header text-header hover:bg-header hover:text-white">
-            <User className="h-5 w-5 mr-2" />
-            Nouveau client
+
+          <Button 
+            onClick={() => onNavigate('clients')}
+            className="h-16 bg-white border border-gray-200 text-main hover:bg-gray-50 flex flex-col items-center justify-center space-y-1"
+          >
+            <Users className="h-6 w-6" />
+            <span className="text-sm">Clients</span>
           </Button>
+        </div>
+      </div>
+
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-header text-white p-4 pb-safe-offset-6">
+        <div className="flex justify-around">
+          <button className="flex flex-col items-center space-y-1">
+            <MessageSquare className="h-6 w-6" />
+            <span className="text-xs">Messages</span>
+          </button>
+          
+          <button 
+            onClick={() => onNavigate('calendar')}
+            className="flex flex-col items-center space-y-1"
+          >
+            <Calendar className="h-6 w-6" />
+            <span className="text-xs">Calendrier</span>
+          </button>
+          
+          <button 
+            onClick={() => onNavigate('clients')}
+            className="flex flex-col items-center space-y-1"
+          >
+            <Users className="h-6 w-6" />
+            <span className="text-xs">Clients</span>
+          </button>
+          
+          <button 
+            onClick={() => onNavigate('settings')}
+            className="flex flex-col items-center space-y-1"
+          >
+            <Settings className="h-6 w-6" />
+            <span className="text-xs">Réglages</span>
+          </button>
         </div>
       </div>
     </div>
