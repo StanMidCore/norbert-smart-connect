@@ -19,7 +19,7 @@ const StripeElements = ({ signupId, email, onComplete, onBack }: StripeElementsP
   const handlePayment = async () => {
     setLoading(true);
     try {
-      console.log('Création session Stripe Checkout pour:', email);
+      console.log('🔄 Création session Stripe Checkout pour:', email);
       
       const { data, error } = await supabase.functions.invoke('process-stripe-payment', {
         body: {
@@ -28,26 +28,25 @@ const StripeElements = ({ signupId, email, onComplete, onBack }: StripeElementsP
         }
       });
 
-      console.log('Réponse de process-stripe-payment:', data, error);
+      console.log('📊 Réponse process-stripe-payment:', data, error);
 
       if (error) {
-        console.error('Erreur de la fonction:', error);
+        console.error('❌ Erreur de la fonction:', error);
         throw error;
       }
 
-      if (data.success && data.checkout_url) {
-        // Ouvrir Stripe Checkout dans une nouvelle fenêtre
-        window.open(data.checkout_url, '_blank');
+      if (data?.success && data?.checkout_url) {
+        console.log('🔗 Redirection vers Stripe Checkout:', data.checkout_url);
+        
+        // Rediriger vers Stripe Checkout dans la même fenêtre
+        window.location.href = data.checkout_url;
+        
         toast.success('Redirection vers Stripe Checkout...');
-        // Optionnellement, on peut appeler onComplete après un délai
-        setTimeout(() => {
-          onComplete();
-        }, 2000);
       } else {
-        throw new Error(data.error || 'Erreur lors de la création de la session de paiement');
+        throw new Error(data?.error || 'Erreur lors de la création de la session de paiement');
       }
     } catch (err) {
-      console.error('Erreur paiement:', err);
+      console.error('❌ Erreur paiement:', err);
       toast.error(err instanceof Error ? err.message : 'Erreur de paiement');
     } finally {
       setLoading(false);
@@ -92,12 +91,6 @@ const StripeElements = ({ signupId, email, onComplete, onBack }: StripeElementsP
           <div className="flex items-center text-sm text-gray-600 bg-gray-100 p-3 rounded-lg">
             <Lock className="w-4 h-4 mr-2" />
             <span>Paiement sécurisé par Stripe - Vos données sont protégées</span>
-          </div>
-
-          <div className="text-center text-sm text-gray-600">
-            <p>• Essai gratuit de 15 jours</p>
-            <p>• Annulation possible à tout moment</p>
-            <p>• Aucun engagement</p>
           </div>
 
           <Button 
