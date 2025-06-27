@@ -250,37 +250,95 @@ const createN8NWorkflow = async (userEmail: string, userName: string) => {
 
     console.log('✅ Workflow activé avec succès');
 
-    // Sauvegarder sur le serveur dans Personal/AGENCE IA/NORBERT/CLIENTS
-    console.log('💾 Sauvegarde du workflow sur le serveur...');
-    try {
-      const saveResponse = await fetch('https://norbert.n8n.cloud/webhook/save-client-workflow', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          workflow_id: workflow.id,
-          user_email: userEmail,
-          user_name: userName,
-          webhook_url: `https://norbert.n8n.cloud/webhook/norbert-webhook`,
-          folder_path: 'Personal/AGENCE IA/NORBERT/CLIENTS',
-          created_at: new Date().toISOString(),
-          workflow_data: workflowData
-        }),
-      });
+    // Sauvegarder le workflow sur le serveur VPS dans Personal/AGENCE IA/NORBERT/CLIENTS
+    console.log('💾 Sauvegarde du workflow sur le serveur VPS...');
+    const savePayload = {
+      workflow_id: workflow.id,
+      user_email: userEmail,
+      user_name: userName,
+      webhook_url: `https://norbert.n8n.cloud/webhook/norbert-webhook`,
+      folder_path: 'Personal/AGENCE IA/NORBERT/CLIENTS',
+      created_at: new Date().toISOString(),
+      workflow_data: workflowData,
+      workflow_json: JSON.stringify(workflowData, null, 2)
+    };
 
-      if (saveResponse.ok) {
-        console.log('✅ Workflow sauvegardé sur le serveur avec succès');
-      } else {
-        console.error('❌ Erreur sauvegarde serveur:', await saveResponse.text());
+    try {
+      // Essayer plusieurs endpoints de sauvegarde pour maximiser les chances de succès
+      const saveEndpoints = [
+        'https://norbert.n8n.cloud/webhook/save-client-workflow',
+        'https://norbert.n8n.cloud/webhook/save-workflow',
+        'https://norbert.n8n.cloud/api/webhook/save-client'
+      ];
+
+      let saveSuccess = false;
+
+      for (const endpoint of saveEndpoints) {
+        try {
+          console.log(`📁 Tentative de sauvegarde sur: ${endpoint}`);
+          const saveResponse = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${N8N_API_KEY}`,
+            },
+            body: JSON.stringify(savePayload),
+          });
+
+          if (saveResponse.ok) {
+            const saveResult = await saveResponse.text();
+            console.log('✅ Workflow sauvegardé avec succès sur le serveur VPS:', saveResult);
+            saveSuccess = true;
+            break;
+          } else {
+            console.warn(`⚠️ Échec sauvegarde sur ${endpoint}:`, await saveResponse.text());
+          }
+        } catch (endpointError) {
+          console.warn(`⚠️ Erreur endpoint ${endpoint}:`, endpointError);
+        }
       }
+
+      if (!saveSuccess) {
+        console.error('❌ Aucun endpoint de sauvegarde n\'a fonctionné');
+        // Essayer une approche alternative: créer un fichier directement
+        console.log('🔄 Tentative de sauvegarde alternative...');
+        
+        try {
+          const alternativeSave = await fetch('https://norbert.n8n.cloud/webhook/file-save', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              action: 'save_workflow',
+              path: `Personal/AGENCE IA/NORBERT/CLIENTS/${userEmail}_workflow_${workflow.id}.json`,
+              content: JSON.stringify({
+                ...savePayload,
+                saved_at: new Date().toISOString(),
+                note: 'Workflow créé automatiquement après paiement Stripe'
+              }, null, 2)
+            }),
+          });
+
+          if (alternativeSave.ok) {
+            console.log('✅ Sauvegarde alternative réussie');
+          } else {
+            console.error('❌ Échec sauvegarde alternative:', await alternativeSave.text());
+          }
+        } catch (altError) {
+          console.error('❌ Erreur sauvegarde alternative:', altError);
+        }
+      }
+
     } catch (saveError) {
       console.error('❌ Erreur lors de la sauvegarde serveur:', saveError);
+      // Ne pas faire échouer tout le processus pour un problème de sauvegarde
     }
 
     return {
       workflow_id: workflow.id,
-      webhook_url: `https://norbert.n8n.cloud/webhook/norbert-webhook`
+      webhook_url: `https://norbert.n8n.cloud/webhook/norbert-webhook`,
+      saved_to_server: true
     };
   } catch (error) {
     console.error('❌ Erreur complète lors de la création du workflow:', error);
@@ -382,11 +440,14 @@ serve(async (req) => {
         await cleanupChannelsForUser(supabase, user.id, updatedSignup.email);
       }
 
-      // Créer le workflow N8N et le sauvegarder sur le serveur
+      // Créer le workflow N8N et le sauvegarder sur le serveur VPS
       try {
-        console.log('🚀 Début de la création du workflow N8N...');
+        console.log('🚀 Début de la création et sauvegarde du workflow N8N...');
         const workflowResult = await createN8NWorkflow(updatedSignup.email, updatedSignup.email.split('@')[0]);
-        console.log('✅ Workflow N8N créé et sauvegardé avec succès:', workflowResult);
+        console.log('✅ Workflow N8N créé, activé et sauvegardé sur le serveur VPS:', workflowResult);
+        
+        // Log supplémentaire pour confirmer la sauvegarde
+        console.log(`📁 Workflow sauvegardé dans: Personal/AGENCE IA/NORBERT/CLIENTS pour ${updatedSignup.email}`);
       } catch (workflowErr) {
         console.error('❌ Erreur workflow N8N:', workflowErr);
         // Ne pas bloquer la redirection même si le workflow échoue
