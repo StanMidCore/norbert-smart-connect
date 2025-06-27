@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,8 +45,8 @@ const ProfileSetup = ({ onComplete }: ProfileSetupProps) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user: profile.name,
-          company: profile.company,
+          user: formData.name,
+          company: formData.company,
           activity: profileData.activity,
           services: profileData.services,
           availability: profileData.availability,
