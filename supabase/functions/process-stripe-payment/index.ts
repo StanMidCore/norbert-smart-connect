@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
+import Stripe from "https://esm.sh/stripe@14.21.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,84 +14,59 @@ serve(async (req) => {
 
   try {
     const { signup_id, email } = await req.json();
-    
+    console.log('🔄 Création session Stripe pour:', email);
+
     if (!signup_id || !email) {
-      return new Response(JSON.stringify({ 
-        error: 'ID inscription et email requis',
-        success: false 
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new Error('signup_id et email requis');
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Vérifier que l'email est vérifié
-    const { data: signup, error: fetchError } = await supabase
-      .from('signup_process')
-      .select('*')
-      .eq('id', signup_id)
-      .eq('email_verified', true)
-      .single();
-
-    if (fetchError || !signup) {
-      console.error('Signup non trouvé ou email non vérifié:', fetchError);
-      return new Response(JSON.stringify({ 
-        error: 'Email non vérifié ou inscription introuvable',
-        success: false 
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
-    if (!stripeKey) {
-      console.error('Clé Stripe secrète non configurée');
-      throw new Error('Clé Stripe non configurée');
-    }
-
-    console.log('Création session Stripe Checkout pour:', email);
-
-    // Créer une session Stripe Checkout sécurisée
-    const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${stripeKey}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        'mode': 'subscription',
-        'payment_method_types[0]': 'card',
-        'line_items[0][price_data][currency]': 'eur',
-        'line_items[0][price_data][product_data][name]': 'Norbert - Assistant IA',
-        'line_items[0][price_data][product_data][description]': 'Assistant IA automatique pour votre business',
-        'line_items[0][price_data][recurring][interval]': 'month',
-        'line_items[0][price_data][unit_amount]': '19700', // 197€ en centimes
-        'line_items[0][quantity]': '1',
-        'subscription_data[trial_period_days]': '15',
-        'customer_email': email,
-        'success_url': `${req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co'}/?payment_success=true&signup_id=${signup_id}`,
-        'cancel_url': `${req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co'}/?payment_cancelled=true`,
-        'metadata[signup_id]': signup_id,
-        'metadata[business_name]': signup.business_name
-      })
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+      apiVersion: '2023-10-16',
     });
 
-    if (!stripeResponse.ok) {
-      const errorText = await stripeResponse.text();
-      console.error('Erreur Stripe:', errorText);
-      throw new Error(`Erreur Stripe: ${errorText}`);
-    }
+    // Récupérer l'origine de la requête pour construire les URLs de redirection
+    const origin = req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co';
+    
+    console.log('🌐 Origin détecté:', origin);
+    
+    // URLs de redirection CORRECTES qui passent par notre fonction stripe-success
+    const successUrl = `${origin}/api/stripe-success?session_id={CHECKOUT_SESSION_ID}&signup_id=${signup_id}`;
+    const cancelUrl = `${origin}/?payment_canceled=true`;
+    
+    console.log('✅ Success URL:', successUrl);
+    console.log('❌ Cancel URL:', cancelUrl);
 
-    const session = await stripeResponse.json();
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [
+        {
+          price_data: {
+            currency: 'eur',
+            product_data: {
+              name: 'Norbert - Assistant IA Personnel',
+              description: 'Assistant IA qui gère vos communications automatiquement'
+            },
+            unit_amount: 19700, // 197€ en centimes
+            recurring: {
+              interval: 'month'
+            }
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      customer_email: email,
+      metadata: {
+        signup_id: signup_id,
+        user_email: email
+      }
+    });
 
-    console.log('Session Stripe créée avec succès:', session.id);
+    console.log('💳 Session Stripe créée:', session.id);
+    console.log('🔗 URL checkout:', session.url);
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       success: true,
       checkout_url: session.url,
       session_id: session.id
@@ -100,10 +75,10 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Erreur process-stripe-payment:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      success: false 
+    console.error('❌ Erreur process-stripe-payment:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

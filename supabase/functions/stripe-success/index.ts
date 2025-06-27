@@ -61,6 +61,10 @@ const cleanupChannelsForUser = async (supabase: any, userId: string, userEmail: 
 };
 
 serve(async (req) => {
+  console.log('🎯 === STRIPE SUCCESS APPELÉ ===');
+  console.log('📨 URL complète:', req.url);
+  console.log('📨 Method:', req.method);
+  
   const url = new URL(req.url);
   const sessionId = url.searchParams.get('session_id');
   const signupId = url.searchParams.get('signup_id');
