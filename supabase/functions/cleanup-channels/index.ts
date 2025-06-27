@@ -56,29 +56,17 @@ serve(async (req) => {
 
     console.log(`📈 Canaux trouvés: ${channels?.length || 0} pour ${targetUserEmail}`);
 
-    // SUPPRIMER TOUS LES CANAUX WHATSAPP DUPLIQUÉS
-    const whatsappChannels = channels?.filter(ch => ch.channel_type === 'whatsapp') || [];
-    console.log(`📱 Canaux WhatsApp trouvés: ${whatsappChannels.length}`);
-    
-    if (whatsappChannels.length > 1) {
-      // Garder le plus récent, supprimer les autres
-      whatsappChannels.sort((a, b) => new Date(b.connected_at || b.created_at).getTime() - new Date(a.connected_at || a.created_at).getTime());
+    // SUPPRESSION MASSIVE ET IMMÉDIATE POUR TOUS LES UTILISATEURS
+    console.log(`🗑️ SUPPRESSION MASSIVE de TOUS les canaux pour: ${targetUserEmail}`);
+    const { error: massDeleteError } = await supabase
+      .from('channels')
+      .delete()
+      .eq('user_id', targetUserId);
       
-      const channelsToDelete = whatsappChannels.slice(1);
-      console.log(`🗑️ Suppression de ${channelsToDelete.length} canaux WhatsApp dupliqués`);
-      
-      for (const channel of channelsToDelete) {
-        const { error: deleteError } = await supabase
-          .from('channels')
-          .delete()
-          .eq('id', channel.id);
-          
-        if (deleteError) {
-          console.error('❌ Erreur suppression canal WhatsApp:', channel.id, deleteError);
-        } else {
-          console.log('✅ Canal WhatsApp supprimé:', channel.id);
-        }
-      }
+    if (massDeleteError) {
+      console.error('❌ Erreur suppression massive:', massDeleteError);
+    } else {
+      console.log('✅ SUPPRESSION MASSIVE réussie pour:', targetUserEmail);
     }
 
     // VÉRIFIER ET NETTOYER LES COMPTES UNIPILE INACTIFS
@@ -97,7 +85,7 @@ serve(async (req) => {
         if (response.ok) {
           const unipileAccounts = await response.json();
           const activeAccountIds = (unipileAccounts || []).map((acc: any) => acc.id);
-          console.log(`📋 Comptes Unipile actifs: ${activeAccountIds.length}`);
+          console.log(`📋 Comptes Unipile actifs trouvés: ${activeAccountIds.length}`);
           
           if (activeAccountIds.length > 0) {
             // Supprimer les canaux avec des account_id qui n'existent plus dans Unipile
@@ -124,21 +112,6 @@ serve(async (req) => {
         }
       } catch (error) {
         console.error('❌ Erreur vérification Unipile:', error);
-      }
-    }
-
-    // SUPPRESSION MASSIVE POUR NOUVEAUX UTILISATEURS
-    if (user_email && user_email !== 'demo@norbert.ai') {
-      console.log(`🧹 NETTOYAGE COMPLET pour nouvel utilisateur: ${user_email}`);
-      const { error: massDeleteError } = await supabase
-        .from('channels')
-        .delete()
-        .eq('user_id', targetUserId);
-        
-      if (massDeleteError) {
-        console.error('❌ Erreur suppression massive:', massDeleteError);
-      } else {
-        console.log('✅ TOUS les canaux supprimés pour le nouvel utilisateur');
       }
     }
 

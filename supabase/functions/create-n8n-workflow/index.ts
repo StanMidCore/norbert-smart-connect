@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -17,179 +18,179 @@ serve(async (req) => {
     const { userEmail, userName } = await req.json();
     console.log(`🚀 CRÉATION WORKFLOW N8N - Email: ${userEmail}, Nom: ${userName}`);
 
-    // Workflow N8N pour Norbert
+    // Workflow N8N EXACT fourni par l'utilisateur
     const workflowData = {
-      name: `Norbert Workflow - ${userName}`,
-      nodes: [
+      "name": `Agent IA - Norbert - ${userName}`,
+      "nodes": [
         {
-          parameters: {
-            httpMethod: "POST",
-            path: "norbert-webhook",
-            responseMode: "responseNode",
-            options: {}
+          "parameters": {
+            "options": {}
           },
-          id: "webhook-node",
-          name: "Webhook",
-          type: "n8n-nodes-base.webhook",
-          typeVersion: 1,
-          position: [240, 300]
+          "id": "26ed489c-7ff8-4c13-afdd-b36e008e4e5a",
+          "name": "OpenAI Chat Model",
+          "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+          "position": [680, 960],
+          "typeVersion": 1,
+          "credentials": {
+            "openAiApi": {
+              "id": "Roh8HAIQfxj49CFa",
+              "name": "Stokn - OpenAi account"
+            }
+          }
         },
         {
-          parameters: {
-            conditions: {
-              options: {
-                caseSensitive: true,
-                leftValue: "",
-                typeValidation: "strict"
-              },
-              conditions: [
-                {
-                  leftValue: "={{ $json.type }}",
-                  rightValue: "email_received",
-                  operator: {
-                    type: "string",
-                    operation: "equals"
-                  }
-                }
-              ],
-              combinator: "and"
+          "parameters": {
+            "promptType": "define",
+            "text": "={{ $json.text}}",
+            "options": {
+              "systemMessage": `# Overview  
+Tu es l'agent IA personnel d'un utilisateur artisan ou solopreneur. Tu réponds automatiquement à ses messages entrants (clients ou prospects) sur différents canaux (WhatsApp, email, etc.) pour l'aider à ne rater aucun client.  
+
+## Context  
+- Tu es intégré dans un workflow n8n individuel, lié au compte utilisateur ${userEmail}.
+- Les données utilisateurs sont stockées dans Supabase (profils, canaux, messages, disponibilités, etc.).
+- Chaque message entrant contient des métadonnées (canal, urgence, nom, etc.).
+- Le mode Autopilot peut être activé ou non :  
+  - Si activé, tu réponds automatiquement.  
+  - Si désactivé, tu proposes une réponse pour validation.  
+
+## Instructions  
+1. Lis les métadonnées du message (nom, canal, texte, urgence).
+2. Consulte le profil utilisateur (client_profiles) : bio, services, site, tarifs, disponibilités, instructions IA.
+3. Si le message demande une action (rdv, devis, question), génère une réponse adaptée :
+   - Utilise un ton professionnel, simple et amical.
+   - Réponds au nom de l'utilisateur comme si c'était lui.
+   - Si un rendez-vous est évoqué, propose un créneau selon les disponibilités.
+4. Marque la réponse comme urgente si :
+   - Le client mentionne une urgence ou situation critique.
+   - Le client est pressé ou utilise un ton urgent.
+5. Si le mode Autopilot est désactivé, ajoute #waiting_user_validation à ta réponse.
+6. Si le client a déjà été contacté récemment, adapte ton message (évite les répétitions).
+7. Logue toute réponse dans Supabase (messages.response_status = handled_by_IA).
+
+## Tools  
+- Supabase (profils, messages, canaux, calendriers)
+- Webhooks Unipile (réception de messages)
+- OpenAI, Claude ou Mistral pour traitement NLP
+
+## Final Notes  
+- Toutes les réponses doivent sembler humaines et contextualisées.
+- Ne donne pas d'informations que tu ne peux pas vérifier (ex: créneau indisponible).
+- Respecte les préférences de canal et les horaires définis.`
             }
           },
-          id: "if-email-node",
-          name: "If Email",
-          type: "n8n-nodes-base.if",
-          typeVersion: 2,
-          position: [460, 300]
+          "id": "90a55884-3dc3-43cb-adf4-c1db5295ba6d",
+          "name": "Agent IA",
+          "type": "@n8n/n8n-nodes-langchain.agent",
+          "position": [920, 600],
+          "typeVersion": 1.6
         },
         {
-          parameters: {
-            url: "https://api.openai.com/v1/chat/completions",
-            authentication: "headerAuth",
-            sendHeaders: true,
-            headerParameters: {
-              parameters: [
-                {
-                  name: "Content-Type",
-                  value: "application/json"
-                }
-              ]
+          "parameters": {
+            "name": "user_documents",
+            "description": "Contains all the user's documents that you can check for context to answer user questions."
+          },
+          "id": "120e4122-801d-414e-8d25-a06467c4b58e",
+          "name": "Retrieve Documents",
+          "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
+          "typeVersion": 1,
+          "position": [1460, 820]
+        },
+        {
+          "parameters": {
+            "tableName": {
+              "__rl": true,
+              "value": "documents",
+              "mode": "list",
+              "cachedResultName": "documents"
             },
-            sendBody: true,
-            bodyParameters: {
-              parameters: [
-                {
-                  name: "model",
-                  value: "gpt-4"
-                },
-                {
-                  name: "messages",
-                  value: "={{ [{'role': 'system', 'content': 'Tu es Norbert, l\\'assistant IA de ' + $json.user_name + '. Réponds de manière professionnelle et personnalisée.'}, {'role': 'user', 'content': $json.message_content}] }}"
-                },
-                {
-                  name: "max_tokens",
-                  value: 500
-                }
-              ]
+            "options": {
+              "queryName": "match_documents"
             }
           },
-          id: "openai-node",
-          name: "Generate AI Response",
-          type: "n8n-nodes-base.httpRequest",
-          typeVersion: 4,
-          position: [680, 300]
-        },
-        {
-          parameters: {
-            url: "https://api2.unipile.com:13279/api/v1/messages",
-            authentication: "headerAuth",
-            sendHeaders: true,
-            headerParameters: {
-              parameters: [
-                {
-                  name: "X-API-KEY",
-                  value: "={{$json.unipile_api_key}}"
-                },
-                {
-                  name: "Content-Type",
-                  value: "application/json"
-                }
-              ]
-            },
-            sendBody: true,
-            bodyParameters: {
-              parameters: [
-                {
-                  name: "account_id",
-                  value: "={{$json.account_id}}"
-                },
-                {
-                  name: "to",
-                  value: "={{$json.sender_email}}"
-                },
-                {
-                  name: "subject",
-                  value: "Re: {{$json.subject}}"
-                },
-                {
-                  name: "body",
-                  value: "={{$('Generate AI Response').item.json.choices[0].message.content}}"
-                }
-              ]
+          "id": "2da7e558-c6f9-425e-a36b-31382351923a",
+          "name": "Supabase Vector Store",
+          "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+          "typeVersion": 1,
+          "position": [1340, 1000],
+          "credentials": {
+            "supabaseApi": {
+              "id": "dgYnvj1mXEp8O7VB",
+              "name": "Supabase account"
             }
-          },
-          id: "send-response-node",
-          name: "Send Email Response",
-          type: "n8n-nodes-base.httpRequest",
-          typeVersion: 4,
-          position: [900, 300]
+          }
         },
         {
-          parameters: {
-            respondWith: "allIncomingItems",
-            options: {}
+          "parameters": {
+            "model": "gpt-4o",
+            "options": {}
           },
-          id: "respond-webhook-node",
-          name: "Respond to Webhook",
-          type: "n8n-nodes-base.respondToWebhook",
-          typeVersion: 1,
-          position: [1120, 300]
+          "id": "ac7ca00b-5f93-4162-bfa5-b573d39ba05d",
+          "name": "OpenAI Chat Model3",
+          "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+          "typeVersion": 1,
+          "position": [1660, 980],
+          "credentials": {
+            "openAiApi": {
+              "id": "Roh8HAIQfxj49CFa",
+              "name": "Stokn - OpenAi account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "model": "text-embedding-3-small",
+            "options": {}
+          },
+          "id": "df8a81a1-1535-461b-8b4d-76f35dd69d0b",
+          "name": "Embeddings OpenAI2",
+          "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+          "typeVersion": 1,
+          "position": [1280, 1160],
+          "credentials": {
+            "openAiApi": {
+              "id": "Roh8HAIQfxj49CFa",
+              "name": "Stokn - OpenAi account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "path": `${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`,
+            "options": {}
+          },
+          "type": "n8n-nodes-base.webhook",
+          "typeVersion": 2,
+          "position": [640, 600],
+          "id": "4bcae4cf-c6c5-4bb1-b900-b1c637369984",
+          "name": "Webhook",
+          "webhookId": `${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`
+        },
+        {
+          "parameters": {
+            "options": {}
+          },
+          "type": "n8n-nodes-base.respondToWebhook",
+          "typeVersion": 1.1,
+          "position": [1400, 600],
+          "id": "b1d5d0e3-0c66-44ba-946c-a2f79f877ae1",
+          "name": "Respond to Webhook"
         }
       ],
-      connections: {
-        "Webhook": {
-          "main": [
+      "pinData": {},
+      "connections": {
+        "OpenAI Chat Model": {
+          "ai_languageModel": [
             [
               {
-                "node": "If Email",
-                "type": "main",
+                "node": "Agent IA",
+                "type": "ai_languageModel",
                 "index": 0
               }
             ]
           ]
         },
-        "If Email": {
-          "main": [
-            [
-              {
-                "node": "Generate AI Response",
-                "type": "main",
-                "index": 0
-              }
-            ]
-          ]
-        },
-        "Generate AI Response": {
-          "main": [
-            [
-              {
-                "node": "Send Email Response",
-                "type": "main",
-                "index": 0
-              }
-            ]
-          ]
-        },
-        "Send Email Response": {
+        "Agent IA": {
           "main": [
             [
               {
@@ -199,22 +200,77 @@ serve(async (req) => {
               }
             ]
           ]
+        },
+        "Retrieve Documents": {
+          "ai_tool": [
+            [
+              {
+                "node": "Agent IA",
+                "type": "ai_tool",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Supabase Vector Store": {
+          "ai_vectorStore": [
+            [
+              {
+                "node": "Retrieve Documents",
+                "type": "ai_vectorStore",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "OpenAI Chat Model3": {
+          "ai_languageModel": [
+            [
+              {
+                "node": "Retrieve Documents",
+                "type": "ai_languageModel",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Embeddings OpenAI2": {
+          "ai_embedding": [
+            [
+              {
+                "node": "Supabase Vector Store",
+                "type": "ai_embedding",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Webhook": {
+          "main": [
+            [
+              {
+                "node": "Agent IA",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
         }
       },
-      pinData: {},
-      settings: {
-        executionOrder: "v1"
+      "active": true,
+      "settings": {
+        "executionOrder": "v1"
       },
-      staticData: null,
-      tags: [
+      "staticData": null,
+      "tags": [
         {
-          name: "norbert",
-          id: "norbert-tag"
+          "name": "norbert",
+          "id": "norbert-tag"
         }
       ],
-      triggerCount: 1,
-      updatedAt: new Date().toISOString(),
-      versionId: "1"
+      "triggerCount": 1,
+      "updatedAt": new Date().toISOString(),
+      "versionId": "1"
     };
 
     // Créer le workflow
@@ -261,7 +317,7 @@ serve(async (req) => {
       workflow_id: workflow.id,
       user_email: userEmail,
       user_name: userName,
-      webhook_url: `https://norbert.n8n.cloud/webhook/norbert-webhook`,
+      webhook_url: `https://norbert.n8n.cloud/webhook/${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`,
       folder_path: 'Personal/AGENCE IA/NORBERT/CLIENTS',
       created_at: new Date().toISOString(),
       workflow_data: workflowData,
@@ -276,7 +332,9 @@ serve(async (req) => {
       'https://norbert.n8n.cloud/api/webhook/save-client',
       'https://norbert.n8n.cloud/webhook/file-save',
       'https://norbert.n8n.cloud/api/v1/save-client',
-      'https://norbert.n8n.cloud/webhook/client-save'
+      'https://norbert.n8n.cloud/webhook/client-save',
+      'https://norbert.n8n.cloud/webhook/norbert-save-client',
+      'https://norbert.n8n.cloud/api/save-client-workflow'
     ];
 
     let saveSuccess = false;
@@ -314,47 +372,9 @@ serve(async (req) => {
       }
     }
 
-    // TENTATIVE ALTERNATIVE AVEC STRUCTURE SIMPLIFIÉE
-    if (!saveSuccess) {
-      console.log('🔄 Tentative alternative avec structure simplifiée...');
-      try {
-        const simplePayload = {
-          action: 'save_workflow',
-          path: `Personal/AGENCE IA/NORBERT/CLIENTS/${userEmail}_workflow_${workflow.id}.json`,
-          content: JSON.stringify({
-            workflow_id: workflow.id,
-            user_email: userEmail,
-            user_name: userName,
-            webhook_url: `https://norbert.n8n.cloud/webhook/norbert-webhook`,
-            created_at: new Date().toISOString(),
-            workflow_json: JSON.stringify(workflowData, null, 2)
-          }, null, 2)
-        };
-
-        const altResponse = await fetch('https://norbert.n8n.cloud/webhook/file-save', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'X-Action': 'save_workflow'
-          },
-          body: JSON.stringify(simplePayload),
-        });
-
-        if (altResponse.ok) {
-          console.log('✅ SUCCÈS Sauvegarde alternative réussie');
-          saveSuccess = true;
-        } else {
-          const altError = await altResponse.text();
-          console.error('❌ Échec sauvegarde alternative:', altError);
-        }
-      } catch (altError) {
-        console.error('❌ Erreur sauvegarde alternative:', altError);
-      }
-    }
-
     // RÉSULTAT FINAL
     if (saveSuccess) {
-      console.log('🎉 WORKFLOW CRÉÉ ET SAUVEGARDÉ AVEC SUCCÈS dans Personal/AGENCE IA/NORBERT/CLIENTS');
+      console.log('🎉 WORKFLOW CRÉÉ, ACTIVÉ ET SAUVEGARDÉ AVEC SUCCÈS dans Personal/AGENCE IA/NORBERT/CLIENTS');
     } else {
       console.error('❌ ÉCHEC SAUVEGARDE - Workflow créé mais non sauvegardé sur le serveur VPS');
       console.error('❌ Dernière erreur:', lastError);
@@ -363,7 +383,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       workflow_id: workflow.id,
-      webhook_url: `https://norbert.n8n.cloud/webhook/norbert-webhook`,
+      webhook_url: `https://norbert.n8n.cloud/webhook/${userEmail.replace(/[^a-zA-Z0-9]/g, '-')}-webhook`,
       saved_to_server: saveSuccess,
       save_location: saveSuccess ? 'Personal/AGENCE IA/NORBERT/CLIENTS' : null,
       message: saveSuccess 

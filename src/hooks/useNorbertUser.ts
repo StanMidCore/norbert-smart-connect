@@ -8,24 +8,24 @@ export const useNorbertUser = () => {
   const [error, setError] = useState<string | null>(null);
 
   const cleanupChannelsForNewUser = async (userId: string, userEmail: string) => {
-    console.log(`🧹 DÉBUT Nettoyage des canaux pour: ${userEmail}`);
+    console.log(`🧹 DÉBUT Nettoyage COMPLET pour: ${userEmail}`);
     
     try {
-      // 1. Supprimer TOUS les canaux existants pour ce nouvel utilisateur
-      console.log(`🗑️ Suppression canaux pour user_id: ${userId}`);
-      const { error: cleanupError } = await supabase
+      // 1. SUPPRESSION LOCALE IMMÉDIATE
+      console.log(`🗑️ Suppression LOCALE pour user_id: ${userId}`);
+      const { error: localDeleteError } = await supabase
         .from('channels')
         .delete()
         .eq('user_id', userId);
 
-      if (cleanupError) {
-        console.error('❌ Erreur suppression canaux locale:', cleanupError);
+      if (localDeleteError) {
+        console.error('❌ Erreur suppression locale:', localDeleteError);
       } else {
-        console.log('✅ Canaux supprimés localement pour:', userEmail);
+        console.log('✅ Suppression locale réussie pour:', userEmail);
       }
 
-      // 2. Appeler la fonction de nettoyage côté serveur SYSTÉMATIQUEMENT
-      console.log(`🔧 Appel fonction cleanup-channels pour: ${userEmail}`);
+      // 2. SUPPRESSION CÔTÉ SERVEUR - SYSTÉMATIQUE
+      console.log(`🔧 Appel SYSTÉMATIQUE cleanup-channels pour: ${userEmail}`);
       try {
         const { data: cleanupResult, error: cleanupFunctionError } = await supabase.functions.invoke('cleanup-channels', {
           body: { user_id: userId, user_email: userEmail }
@@ -34,27 +34,27 @@ export const useNorbertUser = () => {
         if (cleanupFunctionError) {
           console.error('❌ Erreur fonction cleanup-channels:', cleanupFunctionError);
         } else {
-          console.log('✅ Fonction cleanup-channels terminée:', cleanupResult);
+          console.log('✅ Fonction cleanup-channels OK:', cleanupResult);
         }
       } catch (cleanupErr) {
-        console.error('❌ Erreur critique fonction cleanup-channels:', cleanupErr);
+        console.error('❌ Erreur CRITIQUE cleanup-channels:', cleanupErr);
       }
 
-      // 3. Vérification finale - compter les canaux restants
-      const { data: remainingChannels, error: countError } = await supabase
+      // 3. VÉRIFICATION FINALE
+      const { data: finalChannels, error: countError } = await supabase
         .from('channels')
         .select('id')
         .eq('user_id', userId);
 
       if (!countError) {
-        console.log(`📊 Canaux restants après nettoyage: ${remainingChannels?.length || 0} pour ${userEmail}`);
+        console.log(`📊 FINAL: ${finalChannels?.length || 0} canaux restants pour ${userEmail}`);
       }
 
     } catch (error) {
-      console.error('❌ Erreur CRITIQUE lors du nettoyage:', error);
+      console.error('❌ Erreur CRITIQUE nettoyage:', error);
     }
     
-    console.log(`🧹 FIN Nettoyage des canaux pour: ${userEmail}`);
+    console.log(`🧹 FIN Nettoyage COMPLET pour: ${userEmail}`);
   };
 
   const createWorkflowForNewUser = async (userEmail: string, userName: string) => {
@@ -74,16 +74,14 @@ export const useNorbertUser = () => {
       } else {
         console.log('✅ Fonction create-n8n-workflow réussie:', workflowData);
         
-        // Vérifier si la sauvegarde serveur a réussi
         if (workflowData?.saved_to_server) {
-          console.log('✅ Workflow sauvegardé sur le serveur VPS dans Personal/AGENCE IA/NORBERT/CLIENTS');
+          console.log('✅ Workflow sauvegardé sur VPS dans Personal/AGENCE IA/NORBERT/CLIENTS');
         } else {
-          console.warn('⚠️ Workflow créé mais sauvegarde serveur incertaine');
+          console.warn('⚠️ Workflow créé mais sauvegarde VPS échouée');
         }
       }
     } catch (workflowErr) {
       console.error('❌ Erreur CRITIQUE workflow N8N:', workflowErr);
-      console.error('❌ Stack trace:', workflowErr);
     }
     
     console.log(`🚀 FIN Création workflow N8N pour: ${userEmail}`);
@@ -96,7 +94,7 @@ export const useNorbertUser = () => {
     console.log(`👤 DÉBUT Création/récupération utilisateur: ${email}`);
     
     try {
-      // First try to get user directly from database
+      // Vérifier si l'utilisateur existe déjà
       const { data: existingUser, error: fetchError } = await supabase
         .from('users')
         .select('*')
@@ -109,7 +107,7 @@ export const useNorbertUser = () => {
         return existingUser;
       }
 
-      // If user doesn't exist, create via edge function
+      // Créer un nouvel utilisateur
       console.log('🔄 Création nouveau utilisateur via edge function...');
       const { data, error } = await supabase.functions.invoke('create-user-account', {
         body: { 
@@ -126,12 +124,12 @@ export const useNorbertUser = () => {
 
       console.log('✅ Nouvel utilisateur créé:', data.user.id);
       
-      // SYSTÉMATIQUEMENT nettoyer les canaux pour TOUT nouvel utilisateur
-      console.log('🔄 Nettoyage SYSTÉMATIQUE des canaux...');
+      // NETTOYER LES CANAUX IMMÉDIATEMENT
+      console.log('🔄 Nettoyage IMMÉDIAT des canaux...');
       await cleanupChannelsForNewUser(data.user.id, data.user.email);
       
-      // SYSTÉMATIQUEMENT créer le workflow N8N pour TOUT nouvel utilisateur
-      console.log('🔄 Création SYSTÉMATIQUE du workflow N8N...');
+      // CRÉER LE WORKFLOW N8N IMMÉDIATEMENT
+      console.log('🔄 Création IMMÉDIATE du workflow N8N...');
       await createWorkflowForNewUser(data.user.email, data.user.email.split('@')[0]);
       
       setUser(data.user);
@@ -139,7 +137,7 @@ export const useNorbertUser = () => {
     } catch (err) {
       console.error('❌ Erreur createOrGetUser:', err);
       
-      // Fallback: try to create user directly in database
+      // Fallback: création directe
       try {
         console.log('🔄 Tentative de création directe en fallback...');
         const { data: newUser, error: insertError } = await supabase
@@ -156,11 +154,10 @@ export const useNorbertUser = () => {
         
         console.log('✅ Utilisateur créé en fallback:', newUser.id);
         
-        // TOUJOURS nettoyer les canaux même en fallback
+        // NETTOYER ET CRÉER MÊME EN FALLBACK
         console.log('🔄 Nettoyage FALLBACK des canaux...');
         await cleanupChannelsForNewUser(newUser.id, newUser.email);
         
-        // TOUJOURS créer le workflow N8N même en fallback
         console.log('🔄 Création FALLBACK du workflow N8N...');
         await createWorkflowForNewUser(newUser.email, newUser.email.split('@')[0]);
         
