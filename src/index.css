@@ -30,14 +30,14 @@
   --ring: 222.2 84% 4.9%;
   --radius: 0.5rem;
   
-  /* Custom app colors */
-  --app-background: 240 10% 98%;
-  --header-background: 0 0% 100%;
-  --header-foreground: 222.2 84% 4.9%;
-  --cta-button: 24 95% 53%;
-  --text-main: 222.2 84% 4.9%;
-  --status-success: 142 76% 36%;
-  --alert-color: 0 84.2% 60.2%;
+  /* Custom app colors - Charte graphique Norbert */
+  --app-background: #F2F2F2; /* Background app gris clair */
+  --header-background: #1A3C64; /* Header/nav bar bleu foncé */
+  --header-foreground: #FFFFFF; /* Texte header blanc */
+  --cta-button: #F7931E; /* Boutons CTA orange */
+  --text-main: #2B2B2B; /* Texte principal anthracite */
+  --status-success: #3CB878; /* Badges de statut vert moyen */
+  --alert-color: #F7931E; /* Notifications/alertes orange */
 }
 
 @layer base {
@@ -48,6 +48,8 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
     font-family: "Inter", sans-serif;
+    background-color: var(--app-background);
+    color: var(--text-main);
   }
 }
 
@@ -62,6 +64,43 @@
   
   .pb-safe-offset-6 {
     padding-bottom: max(1.5rem, calc(1.5rem + var(--safe-area-inset-bottom)));
+  }
+  
+  /* Custom utility classes for Norbert colors */
+  .bg-app-bg {
+    background-color: var(--app-background);
+  }
+  
+  .bg-header {
+    background-color: var(--header-background);
+  }
+  
+  .text-header {
+    color: var(--header-foreground);
+  }
+  
+  .bg-cta {
+    background-color: var(--cta-button);
+  }
+  
+  .text-main {
+    color: var(--text-main);
+  }
+  
+  .text-status-success {
+    color: var(--status-success);
+  }
+  
+  .bg-status-success {
+    background-color: var(--status-success);
+  }
+  
+  .text-alert {
+    color: var(--alert-color);
+  }
+  
+  .bg-alert {
+    background-color: var(--alert-color);
   }
 }
 
