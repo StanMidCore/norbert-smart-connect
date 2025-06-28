@@ -79,7 +79,7 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
     setLoading(true);
 
     try {
-      console.log('🔄 Début du processus de paiement pour:', email);
+      console.log('🔄 Début du processus de paiement simulé pour:', email);
       
       // Validation basique
       if (!cardData.cardName || !cardData.cardNumber || !cardData.expiryDate || !cardData.cvc) {
@@ -104,52 +104,28 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
       console.log('💳 Simulation du paiement en cours...');
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Marquer le paiement comme complété
-      console.log('📝 Mise à jour du statut de paiement...');
-      const { error: updateError } = await supabase
-        .from('signup_process')
-        .update({
-          payment_completed: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', signupId);
-
-      if (updateError) {
-        console.error('❌ Erreur mise à jour signup:', updateError);
-        throw updateError;
-      }
-
-      console.log('✅ Statut de paiement mis à jour');
-
-      // Créer le compte utilisateur automatiquement
-      console.log('🚀 Création du compte utilisateur...');
-      const { data: accountData, error: accountError } = await supabase.functions.invoke('create-user-account', {
-        body: { 
-          email: email,
-          signup_id: signupId 
-        }
-      });
-
-      if (accountError) {
-        console.error('❌ Erreur création compte:', accountError);
-        toast.error('Paiement réussi mais erreur lors de la création du compte. Contactez le support.');
-      } else {
-        console.log('✅ Compte utilisateur créé:', accountData);
-      }
-
-      console.log('🎉 Paiement complété avec succès');
-      toast.success('Paiement effectué avec succès !');
+      // 🎯 SIMULER LA REDIRECTION STRIPE - déclencher stripe-success manuellement
+      console.log('🔄 Simulation de la redirection Stripe - appel stripe-success...');
       
-      // Redirection immédiate vers la configuration des canaux
-      console.log('🔄 Appel immédiat de onComplete pour redirection...');
-      onComplete();
-
+      // Simuler un session_id Stripe
+      const mockSessionId = `cs_test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Construire l'URL comme le ferait Stripe
+      const currentOrigin = window.location.origin;
+      const stripeSuccessUrl = `${currentOrigin}/api/stripe-success?session_id=${mockSessionId}&signup_id=${signupId}`;
+      
+      console.log('🔗 URL de simulation stripe-success:', stripeSuccessUrl);
+      
+      // Redirection vers notre fonction stripe-success (comme le ferait Stripe)
+      console.log('🎯 Redirection simulée vers stripe-success...');
+      window.location.href = stripeSuccessUrl;
+      
     } catch (err) {
-      console.error('❌ Erreur paiement:', err);
+      console.error('❌ Erreur paiement simulé:', err);
       toast.error(err instanceof Error ? err.message : 'Erreur de paiement');
-    } finally {
       setLoading(false);
     }
+    // Note: on ne remet pas setLoading(false) car on redirige
   };
 
   return (
@@ -159,9 +135,9 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
           <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
             <CreditCard className="w-8 h-8 text-green-600" />
           </div>
-          <CardTitle className="text-2xl font-bold">Informations de paiement</CardTitle>
+          <CardTitle className="text-2xl font-bold">Paiement (Simulation)</CardTitle>
           <CardDescription>
-            Saisissez vos coordonnées bancaires pour commencer votre essai
+            Mode test - Saisissez n'importe quelles données
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -243,7 +219,7 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
 
             <div className="flex items-center text-sm text-gray-600 bg-gray-100 p-3 rounded-lg">
               <Lock className="w-4 h-4 mr-2" />
-              <span>Paiement sécurisé - Vos données sont protégées</span>
+              <span>Paiement simulé - Mode test</span>
             </div>
 
             <div className="text-center text-sm text-gray-600">
@@ -257,7 +233,7 @@ const PaymentForm = ({ signupId, email, onComplete, onBack }: PaymentFormProps) 
               className="w-full" 
               disabled={loading}
             >
-              {loading ? 'Traitement en cours...' : 'Commencer l\'essai gratuit'}
+              {loading ? 'Traitement en cours...' : 'Commencer l\'essai gratuit (Simulation)'}
             </Button>
           </form>
 

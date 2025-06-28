@@ -1,5 +1,5 @@
 
-import StripeElements from './StripeElements';
+import PaymentForm from './PaymentForm';
 
 interface StripePaymentProps {
   signupId: string;
@@ -10,7 +10,7 @@ interface StripePaymentProps {
 
 const StripePayment = ({ signupId, email, onComplete, onBack }: StripePaymentProps) => {
   return (
-    <StripeElements 
+    <PaymentForm 
       signupId={signupId}
       email={email}
       onComplete={onComplete}
