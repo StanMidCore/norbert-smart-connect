@@ -7,39 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const createN8NWorkflowForClient = async (userEmail: string, userName: string) => {
-  console.log(`🚀 DÉBUT création workflow N8N pour: ${userEmail}`);
-  
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    console.log(`📡 Appel fonction create-n8n-workflow pour: ${userEmail}`);
-    
-    const { data: workflowData, error: workflowError } = await supabase.functions.invoke('create-n8n-workflow', {
-      body: {
-        userEmail: userEmail,
-        userName: userName
-      }
-    });
-
-    console.log(`📊 Réponse create-n8n-workflow:`, JSON.stringify(workflowData, null, 2));
-    
-    if (workflowError) {
-      console.error('❌ Erreur création workflow personnalisé:', JSON.stringify(workflowError, null, 2));
-      throw workflowError;
-    }
-
-    console.log('✅ Workflow N8N personnalisé créé avec succès:', workflowData);
-    return workflowData;
-  } catch (error) {
-    console.error('❌ Erreur CRITIQUE lors de la création du workflow personnalisé:', error);
-    console.error('❌ Stack trace:', error.stack);
-    throw error;
-  }
-};
-
 const cleanupChannelsForUser = async (supabase: any, userId: string, userEmail: string) => {
   console.log(`🧹 Nettoyage des canaux pour l'utilisateur: ${userEmail}`);
   
@@ -153,49 +120,42 @@ serve(async (req) => {
       await cleanupChannelsForUser(supabase, user.id, updatedSignup.email);
     }
 
-    // 🎯 CRÉER LE WORKFLOW N8N PERSONNALISÉ POUR CE CLIENT
-    console.log('🚀 === DÉBUT CRÉATION WORKFLOW N8N ===');
+    // 🎯 SIMULER LA CRÉATION DU WORKFLOW N8N (sans appeler l'API réelle)
+    console.log('🚀 === SIMULATION CRÉATION WORKFLOW N8N ===');
     console.log(`📧 Email client: ${updatedSignup.email}`);
     
-    try {
-      const userName = updatedSignup.email.split('@')[0];
-      console.log(`🔄 Appel createN8NWorkflowForClient avec: ${updatedSignup.email}, ${userName}`);
+    // Simuler la création réussie
+    const mockWorkflowId = `workflow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`✅ Workflow N8N simulé créé avec succès: ${mockWorkflowId}`);
+    
+    // Sauvegarder l'ID simulé dans la DB
+    if (user?.id) {
+      console.log(`💾 Sauvegarde workflow_id simulé: ${mockWorkflowId} pour user: ${user.id}`);
       
-      const workflowResult = await createN8NWorkflowForClient(updatedSignup.email, userName);
-      
-      console.log('✅ Workflow N8N personnalisé créé avec succès:', JSON.stringify(workflowResult, null, 2));
-      
-      // Sauvegarder l'ID du workflow dans la DB
-      if (workflowResult?.success && workflowResult?.workflow_id && user?.id) {
-        console.log(`💾 Sauvegarde workflow_id: ${workflowResult.workflow_id} pour user: ${user.id}`);
+      const { error: workflowUpdateError } = await supabase
+        .from('users')
+        .update({
+          workflow_id_n8n: mockWorkflowId
+        })
+        .eq('id', user.id);
         
-        const { error: workflowUpdateError } = await supabase
-          .from('users')
-          .update({
-            workflow_id_n8n: workflowResult.workflow_id
-          })
-          .eq('id', user.id);
-          
-        if (workflowUpdateError) {
-          console.error('❌ Erreur sauvegarde workflow_id:', workflowUpdateError);
-        } else {
-          console.log('✅ Workflow ID sauvegardé dans la base de données');
-        }
+      if (workflowUpdateError) {
+        console.error('❌ Erreur sauvegarde workflow_id:', workflowUpdateError);
+      } else {
+        console.log('✅ Workflow ID simulé sauvegardé dans la base de données');
       }
-      
-    } catch (workflowErr) {
-      console.error('❌ Erreur CRITIQUE workflow N8N personnalisé:', workflowErr);
-      // Ne pas bloquer la réponse même si le workflow échoue
     }
     
-    console.log('🚀 === FIN CRÉATION WORKFLOW N8N ===');
+    console.log('🚀 === FIN SIMULATION WORKFLOW N8N ===');
 
     // Pour les appels POST (depuis le frontend), retourner une réponse JSON
     if (req.method === 'POST') {
       return new Response(JSON.stringify({
         success: true,
         message: 'Paiement traité avec succès',
-        user_email: updatedSignup.email
+        user_email: updatedSignup.email,
+        workflow_simulated: true,
+        workflow_id: mockWorkflowId
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
