@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import StripeSuccess from "./pages/StripeSuccess";
+import StripeSuccessHandler from "./pages/StripeSuccessHandler";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,7 +27,8 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/api/stripe-success" element={<StripeSuccess />} />
+          <Route path="/api/stripe-success" element={<StripeSuccessHandler />} />
+          <Route path="/stripe-success" element={<StripeSuccess />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
