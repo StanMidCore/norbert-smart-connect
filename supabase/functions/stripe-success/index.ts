@@ -238,55 +238,92 @@ serve(async (req) => {
       await cleanupChannelsForUser(supabase, user.id, updatedSignup.email);
     }
 
-    // 🎯 SIMULER LA CRÉATION DU WORKFLOW N8N (sans appeler l'API réelle)
-    console.log('🚀 === SIMULATION CRÉATION WORKFLOW N8N ===');
+    // 🎯 CRÉER LE WORKFLOW N8N RÉEL (plus de simulation)
+    console.log('🚀 === CRÉATION WORKFLOW N8N RÉEL ===');
     console.log(`📧 Email client: ${updatedSignup.email}`);
+    console.log(`👤 Nom client: ${updatedSignup.business_name}`);
     
     await logEvent({
       function_name: 'stripe-success',
-      event: 'n8n_workflow_simulation_started',
+      event: 'n8n_workflow_creation_started',
       user_id: user?.id,
       user_email: updatedSignup.email
     });
     
-    // Simuler la création réussie
-    const mockWorkflowId = `workflow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.log(`✅ Workflow N8N simulé créé avec succès: ${mockWorkflowId}`);
-    
-    // Sauvegarder l'ID simulé dans la DB
-    if (user?.id) {
-      console.log(`💾 Sauvegarde workflow_id simulé: ${mockWorkflowId} pour user: ${user.id}`);
-      
-      const { error: workflowUpdateError } = await supabase
-        .from('users')
-        .update({
-          workflow_id_n8n: mockWorkflowId
-        })
-        .eq('id', user.id);
-        
-      if (workflowUpdateError) {
-        console.error('❌ Erreur sauvegarde workflow_id:', workflowUpdateError);
+    try {
+      const { data: workflowData, error: workflowError } = await supabase.functions.invoke('create-n8n-workflow', {
+        body: {
+          userEmail: updatedSignup.email,
+          userName: updatedSignup.business_name || updatedSignup.email.split('@')[0]
+        }
+      });
+
+      if (workflowError) {
+        console.error('❌ Erreur création workflow N8N:', workflowError);
         await logEvent({
           function_name: 'stripe-success',
-          event: 'workflow_id_save_error',
-          user_id: user.id,
+          event: 'n8n_workflow_creation_error',
+          user_id: user?.id,
           user_email: updatedSignup.email,
           level: 'error',
-          details: { error: workflowUpdateError, workflow_id: mockWorkflowId }
+          details: { error: workflowError }
         });
       } else {
-        console.log('✅ Workflow ID simulé sauvegardé dans la base de données');
+        console.log('✅ Workflow N8N créé avec succès:', workflowData);
         await logEvent({
           function_name: 'stripe-success',
-          event: 'workflow_id_saved',
-          user_id: user.id,
+          event: 'n8n_workflow_created',
+          user_id: user?.id,
           user_email: updatedSignup.email,
-          details: { workflow_id: mockWorkflowId }
+          details: { workflow_data: workflowData }
         });
+
+        // Sauvegarder l'ID du workflow dans la DB
+        if (user?.id && workflowData?.workflow_id) {
+          console.log(`💾 Sauvegarde workflow_id: ${workflowData.workflow_id} pour user: ${user.id}`);
+          
+          const { error: workflowUpdateError } = await supabase
+            .from('users')
+            .update({
+              workflow_id_n8n: workflowData.workflow_id
+            })
+            .eq('id', user.id);
+            
+          if (workflowUpdateError) {
+            console.error('❌ Erreur sauvegarde workflow_id:', workflowUpdateError);
+            await logEvent({
+              function_name: 'stripe-success',
+              event: 'workflow_id_save_error',
+              user_id: user.id,
+              user_email: updatedSignup.email,
+              level: 'error',
+              details: { error: workflowUpdateError, workflow_id: workflowData.workflow_id }
+            });
+          } else {
+            console.log('✅ Workflow ID sauvegardé dans la base de données');
+            await logEvent({
+              function_name: 'stripe-success',
+              event: 'workflow_id_saved',
+              user_id: user.id,
+              user_email: updatedSignup.email,
+              details: { workflow_id: workflowData.workflow_id }
+            });
+          }
+        }
       }
+    } catch (workflowErr) {
+      console.error('❌ Erreur CRITIQUE workflow N8N:', workflowErr);
+      await logEvent({
+        function_name: 'stripe-success',
+        event: 'n8n_workflow_critical_error',
+        user_id: user?.id,
+        user_email: updatedSignup.email,
+        level: 'error',
+        details: { error: workflowErr.message }
+      });
     }
     
-    console.log('🚀 === FIN SIMULATION WORKFLOW N8N ===');
+    console.log('🚀 === FIN CRÉATION WORKFLOW N8N ===');
 
     await logEvent({
       function_name: 'stripe-success',
@@ -294,8 +331,7 @@ serve(async (req) => {
       user_id: user?.id,
       user_email: updatedSignup.email,
       details: {
-        workflow_simulated: true,
-        workflow_id: mockWorkflowId,
+        workflow_created: true,
         channels_cleaned: true,
         success: true
       }
@@ -308,8 +344,7 @@ serve(async (req) => {
         message: 'Paiement traité avec succès',
         user_email: updatedSignup.email,
         user_id: user?.id,
-        workflow_simulated: true,
-        workflow_id: mockWorkflowId,
+        workflow_created: true,
         channels_cleaned: true
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
