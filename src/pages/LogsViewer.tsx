@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,17 +8,9 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, Filter, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tables } from '@/integrations/supabase/types';
 
-interface LogEntry {
-  id: string;
-  function_name: string;
-  event: string;
-  details: any;
-  user_id?: string;
-  user_email?: string;
-  level: 'debug' | 'info' | 'warn' | 'error';
-  created_at: string;
-}
+type LogEntry = Tables<'edge_function_logs'>;
 
 const LogsViewer = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -67,7 +58,7 @@ const LogsViewer = () => {
     fetchLogs();
   }, [selectedFunction, selectedLevel, searchTerm]);
 
-  const getLevelColor = (level: string) => {
+  const getLevelColor = (level: string | null) => {
     switch (level) {
       case 'error': return 'destructive';
       case 'warn': return 'secondary';
