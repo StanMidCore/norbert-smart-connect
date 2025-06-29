@@ -46,24 +46,25 @@ const StripeSuccessHandler = () => {
         console.log('✅ Stripe-success terminé avec succès');
         setStatus('success');
         
-        // Attendre un peu puis déclencher le nettoyage manuellement
-        setTimeout(async () => {
-          console.log('🧹 Déclenchement manuel du nettoyage des canaux...');
+        // Si nous avons reçu les informations utilisateur, utiliser le bon nettoyage
+        if (data && data.user_email && data.user_id) {
+          console.log(`🧹 Déclenchement nettoyage pour le BON utilisateur: ${data.user_email}`);
           try {
             const { data: cleanupData, error: cleanupError } = await supabase.functions.invoke('cleanup-channels', {
               body: {
-                user_email: 'demo@norbert.ai'
+                user_id: data.user_id,
+                user_email: data.user_email
               }
             });
             console.log('🧹 Résultat nettoyage:', cleanupData, cleanupError);
             setDebugInfo(prev => ({ ...prev, cleanup_response: cleanupData, cleanup_error: cleanupError }));
           } catch (cleanupErr) {
-            console.error('❌ Erreur nettoyage manuel:', cleanupErr);
+            console.error('❌ Erreur nettoyage:', cleanupErr);
           }
-          
-          // Rediriger vers les canaux
-          navigate('/?payment_success=true');
-        }, 2000);
+        }
+        
+        // Rediriger vers les canaux
+        navigate('/?payment_success=true');
 
       } catch (error) {
         console.error('❌ Erreur dans StripeSuccessHandler:', error);
