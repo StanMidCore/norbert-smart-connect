@@ -20,7 +20,22 @@ const cleanupChannelsForUser = async (supabase: any, userId: string, userEmail: 
     if (deleteError) {
       console.error('❌ Erreur suppression canaux:', deleteError);
     } else {
-      console.log('✅ Canaux nettoyés avec succès');
+      console.log('✅ Canaux nettoyés avec succès pour:', userEmail);
+    }
+
+    // Appeler la fonction cleanup-channels avec les bonnes informations utilisateur
+    console.log(`🔧 Appel cleanup-channels pour: ${userEmail} (${userId})`);
+    const { data: cleanupData, error: cleanupError } = await supabase.functions.invoke('cleanup-channels', {
+      body: {
+        user_id: userId,
+        user_email: userEmail
+      }
+    });
+
+    if (cleanupError) {
+      console.error('❌ Erreur cleanup-channels:', cleanupError);
+    } else {
+      console.log('✅ Cleanup-channels réussi:', cleanupData);
     }
   } catch (error) {
     console.error('❌ Erreur lors du nettoyage des canaux:', error);
@@ -115,8 +130,9 @@ serve(async (req) => {
       console.log('✅ Utilisateur créé/mis à jour:', user?.id || 'existant');
     }
 
-    // Nettoyer les canaux pour ce nouvel utilisateur
+    // Nettoyer les canaux pour ce nouvel utilisateur AVEC SES VRAIES INFOS
     if (user?.id) {
+      console.log(`🧹 NETTOYAGE POUR LE BON UTILISATEUR: ${updatedSignup.email} (${user.id})`);
       await cleanupChannelsForUser(supabase, user.id, updatedSignup.email);
     }
 
@@ -154,8 +170,10 @@ serve(async (req) => {
         success: true,
         message: 'Paiement traité avec succès',
         user_email: updatedSignup.email,
+        user_id: user?.id,
         workflow_simulated: true,
-        workflow_id: mockWorkflowId
+        workflow_id: mockWorkflowId,
+        channels_cleaned: true
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });

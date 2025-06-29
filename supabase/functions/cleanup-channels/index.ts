@@ -14,7 +14,7 @@ serve(async (req) => {
 
   try {
     const { user_id, user_email } = await req.json();
-    console.log(`🧹 DÉBUT NETTOYAGE SERVEUR - User: ${user_email || 'demo@norbert.ai'}`);
+    console.log(`🧹 DÉBUT NETTOYAGE SERVEUR - User: ${user_email || 'utilisateur inconnu'}`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -23,9 +23,9 @@ serve(async (req) => {
     let targetUserId = user_id;
     let targetUserEmail = user_email;
 
-    // Si pas d'ID utilisateur fourni, utiliser l'utilisateur demo
+    // Si pas d'ID utilisateur fourni, utiliser l'utilisateur demo comme fallback
     if (!targetUserId) {
-      console.log('🔍 Recherche utilisateur demo...');
+      console.log('🔍 Recherche utilisateur demo en fallback...');
       const { data: user, error: userError } = await supabase
         .from('users')
         .select('*')
@@ -34,12 +34,14 @@ serve(async (req) => {
 
       if (userError || !user) {
         console.error('❌ Utilisateur demo non trouvé:', userError);
-        throw new Error('Utilisateur non trouvé');
+        throw new Error('Aucun utilisateur spécifié et utilisateur demo non trouvé');
       }
 
       targetUserId = user.id;
       targetUserEmail = user.email;
-      console.log('✅ Utilisateur demo trouvé:', targetUserId);
+      console.log('✅ Utilisateur demo trouvé en fallback:', targetUserId);
+    } else {
+      console.log(`✅ Utilisateur spécifié: ${targetUserEmail} (${targetUserId})`);
     }
 
     // Récupérer TOUS les canaux actuels
@@ -56,7 +58,7 @@ serve(async (req) => {
 
     console.log(`📈 Canaux trouvés: ${channels?.length || 0} pour ${targetUserEmail}`);
 
-    // SUPPRESSION MASSIVE ET IMMÉDIATE POUR TOUS LES UTILISATEURS
+    // SUPPRESSION MASSIVE ET IMMÉDIATE
     console.log(`🗑️ SUPPRESSION MASSIVE de TOUS les canaux pour: ${targetUserEmail}`);
     const { error: massDeleteError } = await supabase
       .from('channels')
@@ -84,12 +86,13 @@ serve(async (req) => {
 
         if (response.ok) {
           const unipileAccounts = await response.json();
-          const activeAccountIds = (unipileAccounts || []).map((acc: any) => acc.id);
+          // CORRECTION DE L'ERREUR : vérifier que c'est bien un tableau
+          const activeAccountIds = Array.isArray(unipileAccounts) ? unipileAccounts.map((acc: any) => acc.id) : [];
           console.log(`📋 Comptes Unipile actifs trouvés: ${activeAccountIds.length}`);
           
-          if (activeAccountIds.length > 0) {
+          if (activeAccountIds.length > 0 && channels && Array.isArray(channels)) {
             // Supprimer les canaux avec des account_id qui n'existent plus dans Unipile
-            const channelsWithUnipileId = channels?.filter(ch => ch.unipile_account_id) || [];
+            const channelsWithUnipileId = channels.filter(ch => ch.unipile_account_id);
             const inactiveChannels = channelsWithUnipileId.filter(ch => !activeAccountIds.includes(ch.unipile_account_id));
             
             console.log(`🗑️ Canaux inactifs trouvés: ${inactiveChannels.length}`);
@@ -128,6 +131,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true,
       user_email: targetUserEmail,
+      user_id: targetUserId,
       channels_before: channels?.length || 0,
       channels_after: finalCount,
       message: `Nettoyage terminé pour ${targetUserEmail}`,
