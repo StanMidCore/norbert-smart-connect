@@ -75,17 +75,38 @@ export async function createUserAccount(signupData: SignupData) {
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Créer le compte utilisateur final
+  console.log('👤 Création/vérification utilisateur pour:', signupData.email);
+  
+  // D'abord, vérifier si l'utilisateur existe déjà
+  const { data: existingUser, error: fetchError } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', signupData.email)
+    .single();
+
+  if (existingUser && !fetchError) {
+    console.log('✅ Utilisateur existant trouvé:', existingUser.id);
+    await logEvent({
+      function_name: 'stripe-success',
+      event: 'user_found_existing',
+      user_id: existingUser.id,
+      user_email: signupData.email,
+      details: { found_existing: true }
+    });
+    return existingUser;
+  }
+
+  // Créer le compte utilisateur final si il n'existe pas
   const { data: user, error: userError } = await supabase
     .from('users')
-    .upsert({
+    .insert({
       email: signupData.email,
       autopilot: true
     })
     .select()
     .single();
 
-  if (userError && userError.code !== '23505') { // Ignorer erreur duplicate
+  if (userError) {
     console.error('❌ Erreur création utilisateur:', userError);
     await logEvent({
       function_name: 'stripe-success',
@@ -94,16 +115,17 @@ export async function createUserAccount(signupData: SignupData) {
       level: 'error',
       details: { error: userError }
     });
-  } else {
-    console.log('✅ Utilisateur créé/mis à jour:', user?.id || 'existant');
-    await logEvent({
-      function_name: 'stripe-success',
-      event: 'user_created',
-      user_id: user?.id,
-      user_email: signupData.email,
-      details: { created_or_updated: user ? 'created' : 'updated' }
-    });
+    throw userError;
   }
+
+  console.log('✅ Nouvel utilisateur créé:', user.id);
+  await logEvent({
+    function_name: 'stripe-success',
+    event: 'user_created',
+    user_id: user.id,
+    user_email: signupData.email,
+    details: { created_new: true }
+  });
 
   return user;
 }

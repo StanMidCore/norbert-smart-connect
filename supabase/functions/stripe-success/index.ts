@@ -70,36 +70,37 @@ serve(async (req) => {
     const updatedSignup = await processPayment(sessionId, signupId);
     
     // Création du compte utilisateur
-    console.log('👤 Création du compte utilisateur...');
+    console.log('👤 Création/vérification du compte utilisateur...');
     const user = await createUserAccount(updatedSignup);
 
-    // Nettoyage des canaux - ASSURER QUE L'APPEL SE FAIT
-    console.log('🧹 DÉBUT NETTOYAGE DES CANAUX');
-    let cleanupResult = null;
-    let channelsCleaned = false;
-    
-    if (user?.id) {
-      console.log(`🧹 Appel cleanup pour user: ${user.id} (${updatedSignup.email})`);
-      cleanupResult = await cleanupChannels(user.id, updatedSignup.email);
-      channelsCleaned = !!cleanupResult;
-      console.log(`🧹 Résultat cleanup: ${channelsCleaned ? 'RÉUSSI' : 'ÉCHEC'}`);
-    } else {
-      console.log('❌ Pas d\'ID utilisateur pour le nettoyage');
+    if (!user || !user.id) {
+      console.error('❌ Utilisateur non créé ou ID manquant');
+      throw new Error('Impossible de créer ou récupérer l\'utilisateur');
     }
+
+    console.log('✅ Utilisateur confirmé avec ID:', user.id);
+
+    // Nettoyage des canaux - AVEC ID UTILISATEUR VALIDE
+    console.log('🧹 DÉBUT NETTOYAGE DES CANAUX');
+    console.log(`🧹 Appel cleanup pour user: ${user.id} (${updatedSignup.email})`);
+    
+    const cleanupResult = await cleanupChannels(user.id, updatedSignup.email);
+    const channelsCleaned = !!cleanupResult;
+    console.log(`🧹 Résultat cleanup: ${channelsCleaned ? 'RÉUSSI' : 'ÉCHEC'}`);
 
     // Création du workflow N8N
     console.log('🚀 Création du workflow N8N...');
     const workflowResult = await createN8NWorkflow(
       updatedSignup.email,
-      updatedSignup.business_name,
-      user?.id
+      updatedSignup.business_name || updatedSignup.email.split('@')[0],
+      user.id
     );
     const workflowCreated = !!workflowResult;
 
     await logEvent({
       function_name: 'stripe-success',
       event: 'payment_processing_completed',
-      user_id: user?.id,
+      user_id: user.id,
       user_email: updatedSignup.email,
       details: {
         workflow_created: workflowCreated,
@@ -111,7 +112,7 @@ serve(async (req) => {
     const result: ProcessingResult = {
       success: true,
       user_email: updatedSignup.email,
-      user_id: user?.id,
+      user_id: user.id,
       workflow_created: workflowCreated,
       workflow_data: workflowResult,
       channels_cleaned: channelsCleaned,
