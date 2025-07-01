@@ -1,4 +1,5 @@
 
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 import { Resend } from "https://esm.sh/resend@2.0.0";
@@ -9,14 +10,20 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log('🔄 DÉBUT Create-signup - Méthode:', req.method);
+  
   if (req.method === 'OPTIONS') {
+    console.log('✅ Requête OPTIONS - Retour CORS');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log('📋 Récupération données requête...');
     const { email, business_name } = await req.json();
+    console.log('📊 Données reçues:', { email: email ? 'présent' : 'absent', business_name: business_name ? 'présent' : 'absent' });
     
     if (!email || !business_name) {
+      console.error('❌ Données manquantes:', { email: !!email, business_name: !!business_name });
       return new Response(JSON.stringify({ 
         error: 'Email et nom de l\'entreprise requis',
         success: false 
@@ -26,15 +33,31 @@ serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    // Initialize Supabase client
+    console.log('🔗 Initialisation client Supabase...');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('❌ Variables Supabase manquantes');
+      return new Response(JSON.stringify({ 
+        error: 'Configuration Supabase manquante',
+        success: false 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('✅ Client Supabase initialisé');
 
     // Générer un token de vérification
+    console.log('🎲 Génération token vérification...');
     const verificationToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
-    console.log('Création signup pour:', email, business_name);
+    console.log('💾 Création signup pour:', email.substring(0, 3) + '***');
 
     // Créer l'entrée signup_process
     const { data: signup, error: signupError } = await supabase
@@ -54,12 +77,29 @@ serve(async (req) => {
       .single();
 
     if (signupError) {
-      console.error('Erreur création signup:', signupError);
+      console.error('❌ Erreur création signup:', signupError);
       throw signupError;
     }
 
+    console.log('✅ Signup créé avec ID:', signup.id);
+
+    // Vérifier la clé Resend
+    console.log('🔑 Vérification clé Resend...');
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) {
+      console.error('❌ Clé Resend manquante');
+      return new Response(JSON.stringify({ 
+        error: 'Configuration email manquante',
+        success: false 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Envoyer l'email de vérification avec le domaine par défaut
-    const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+    console.log('📧 Envoi email vérification...');
+    const resend = new Resend(resendApiKey);
     
     const emailResult = await resend.emails.send({
       from: 'Norbert <onboarding@resend.dev>',
@@ -78,8 +118,12 @@ serve(async (req) => {
       `
     });
 
-    console.log('Email envoyé:', emailResult);
+    console.log('📊 Résultat email:', emailResult.error ? 'ÉCHEC' : 'SUCCÈS');
+    if (emailResult.error) {
+      console.error('❌ Erreur envoi email:', emailResult.error);
+    }
 
+    console.log('✅ Processus signup terminé avec succès');
     return new Response(JSON.stringify({ 
       success: true,
       signup_id: signup.id,
@@ -89,13 +133,20 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Erreur create-signup:', error);
+    console.error('❌ Erreur CRITIQUE create-signup:', error);
+    console.error('📊 Type erreur:', typeof error);
+    console.error('📊 Message:', error.message);
+    console.error('📊 Stack:', error.stack);
+    
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: `Erreur technique: ${error.message || 'Erreur inconnue'}`,
       success: false 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  } finally {
+    console.log('🔄 FIN Create-signup');
   }
 });
+

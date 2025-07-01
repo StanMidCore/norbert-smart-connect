@@ -1,4 +1,5 @@
 
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 
 export const getDemoUser = async () => {
@@ -24,74 +25,90 @@ export const getDemoUser = async () => {
 export const storeWhatsAppChannel = async (supabase: any, userId: string, accountId: string) => {
   console.log('💾 Insertion canal WhatsApp en base...');
   
-  const { error } = await supabase
-    .from('channels')
-    .insert({
-      user_id: userId,
-      unipile_account_id: accountId,
-      channel_type: 'whatsapp',
-      status: 'pending',
-      provider_info: {
-        provider: 'WhatsApp',
-        account_id: accountId
-      }
-    });
+  try {
+    const { error } = await supabase
+      .from('channels')
+      .insert({
+        user_id: userId,
+        unipile_account_id: accountId,
+        channel_type: 'whatsapp',
+        status: 'pending',
+        provider_info: {
+          provider: 'WhatsApp',
+          account_id: accountId
+        }
+      });
 
-  if (error) {
-    console.error('❌ Erreur insertion canal WhatsApp:', error);
+    if (error) {
+      console.error('❌ Erreur insertion canal WhatsApp:', error);
+      throw error;
+    }
+    
+    console.log('✅ Canal WhatsApp inséré avec succès');
+  } catch (error) {
+    console.error('❌ Erreur CRITIQUE insertion WhatsApp:', error);
     throw error;
   }
-  
-  console.log('✅ Canal WhatsApp inséré avec succès');
 };
 
 export const storeEmailChannel = async (supabase: any, userId: string, accountId: string, provider: string) => {
   console.log(`💾 Insertion canal email ${provider} en base...`);
   
-  const channelType = provider.toLowerCase() === 'gmail' ? 'gmail' : 'outlook';
-  const providerName = provider.toLowerCase() === 'gmail' ? 'Gmail' : 'Outlook';
-  
-  const { error } = await supabase
-    .from('channels')
-    .insert({
-      user_id: userId,
-      unipile_account_id: accountId,
-      channel_type: channelType,
-      status: 'pending',
-      provider_info: {
-        provider: providerName,
-        account_id: accountId
-      }
-    });
+  try {
+    const channelType = provider.toLowerCase() === 'gmail' ? 'gmail' : 'outlook';
+    const providerName = provider.toLowerCase() === 'gmail' ? 'Gmail' : 'Outlook';
+    
+    const { error } = await supabase
+      .from('channels')
+      .insert({
+        user_id: userId,
+        unipile_account_id: accountId,
+        channel_type: channelType,
+        status: 'pending',
+        provider_info: {
+          provider: providerName,
+          account_id: accountId
+        }
+      });
 
-  if (error) {
-    console.error(`❌ Erreur insertion canal ${provider}:`, error);
+    if (error) {
+      console.error(`❌ Erreur insertion canal ${provider}:`, error);
+      throw error;
+    }
+    
+    console.log(`✅ Canal ${provider} inséré avec succès`);
+  } catch (error) {
+    console.error(`❌ Erreur CRITIQUE insertion canal ${provider}:`, error);
     throw error;
   }
-  
-  console.log(`✅ Canal ${provider} inséré avec succès`);
 };
 
 export const storeInstagramChannel = async (supabase: any, userId: string, accountId: string) => {
   console.log('💾 Insertion canal Instagram en base...');
   
-  const { error } = await supabase
-    .from('channels')
-    .insert({
-      user_id: userId,
-      unipile_account_id: accountId,
-      channel_type: 'instagram',
-      status: 'pending',
-      provider_info: {
-        provider: 'Instagram',
-        account_id: accountId
-      }
-    });
+  try {
+    const { error } = await supabase
+      .from('channels')
+      .insert({
+        user_id: userId,
+        unipile_account_id: accountId,
+        channel_type: 'instagram',
+        status: 'pending',
+        provider_info: {
+          provider: 'Instagram',
+          account_id: accountId
+        }
+      });
 
-  if (error) {
-    console.error('❌ Erreur insertion canal Instagram:', error);
+    if (error) {
+      console.error('❌ Erreur insertion canal Instagram:', error);
+      throw error;
+    }
+    
+    console.log('✅ Canal Instagram inséré avec succès');
+  } catch (error) {
+    console.error('❌ Erreur CRITIQUE insertion Instagram:', error);
     throw error;
   }
-  
-  console.log('✅ Canal Instagram inséré avec succès');
 };
+
