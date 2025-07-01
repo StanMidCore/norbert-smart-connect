@@ -1,5 +1,7 @@
 
 import N8NWebhookManager from '@/components/N8NWebhookManager';
+import AutoN8NWebhook from '@/components/AutoN8NWebhook';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const N8NWebhook = () => {
   return (
@@ -14,7 +16,20 @@ const N8NWebhook = () => {
           </p>
         </div>
         
-        <N8NWebhookManager />
+        <Tabs defaultValue="auto" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="auto">🔄 Automatique</TabsTrigger>
+            <TabsTrigger value="manual">🎛️ Manuel</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="auto" className="space-y-6">
+            <AutoN8NWebhook />
+          </TabsContent>
+          
+          <TabsContent value="manual" className="space-y-6">
+            <N8NWebhookManager />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
