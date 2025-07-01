@@ -8,85 +8,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const cleanupChannelsForUser = async (supabase: any, userId: string, userEmail: string) => {
-  console.log(`🧹 Nettoyage des canaux pour l'utilisateur: ${userEmail}`);
-  
-  await logEvent({
-    function_name: 'stripe-success',
-    event: 'cleanup_channels_started',
-    user_id: userId,
-    user_email: userEmail
-  });
-  
-  try {
-    // Supprimer tous les canaux existants pour cet utilisateur
-    const { error: deleteError } = await supabase
-      .from('channels')
-      .delete()
-      .eq('user_id', userId);
-
-    if (deleteError) {
-      console.error('❌ Erreur suppression canaux:', deleteError);
-      await logEvent({
-        function_name: 'stripe-success',
-        event: 'cleanup_channels_delete_error',
-        user_id: userId,
-        user_email: userEmail,
-        level: 'error',
-        details: { error: deleteError }
-      });
-    } else {
-      console.log('✅ Canaux nettoyés avec succès pour:', userEmail);
-      await logEvent({
-        function_name: 'stripe-success',
-        event: 'cleanup_channels_delete_success',
-        user_id: userId,
-        user_email: userEmail
-      });
-    }
-
-    // Appeler la fonction cleanup-channels avec les bonnes informations utilisateur
-    console.log(`🔧 Appel cleanup-channels pour: ${userEmail} (${userId})`);
-    const { data: cleanupData, error: cleanupError } = await supabase.functions.invoke('cleanup-channels', {
-      body: {
-        user_id: userId,
-        user_email: userEmail
-      }
-    });
-
-    if (cleanupError) {
-      console.error('❌ Erreur cleanup-channels:', cleanupError);
-      await logEvent({
-        function_name: 'stripe-success',
-        event: 'cleanup_channels_invoke_error',
-        user_id: userId,
-        user_email: userEmail,
-        level: 'error',
-        details: { error: cleanupError }
-      });
-    } else {
-      console.log('✅ Cleanup-channels réussi:', cleanupData);
-      await logEvent({
-        function_name: 'stripe-success',
-        event: 'cleanup_channels_invoke_success',
-        user_id: userId,
-        user_email: userEmail,
-        details: { response: cleanupData }
-      });
-    }
-  } catch (error) {
-    console.error('❌ Erreur lors du nettoyage des canaux:', error);
-    await logEvent({
-      function_name: 'stripe-success',
-      event: 'cleanup_channels_error',
-      user_id: userId,
-      user_email: userEmail,
-      level: 'error',
-      details: { error: error.message }
-    });
-  }
-};
-
 serve(async (req) => {
   console.log('🎯 === STRIPE SUCCESS APPELÉ ===');
   console.log('📨 URL complète:', req.url);
@@ -232,13 +153,64 @@ serve(async (req) => {
       });
     }
 
-    // Nettoyer les canaux pour ce nouvel utilisateur AVEC SES VRAIES INFOS
+    // 🧹 VRAIMENT NETTOYER LES CANAUX MAINTENANT
+    let cleanupResult = null;
     if (user?.id) {
-      console.log(`🧹 NETTOYAGE POUR LE BON UTILISATEUR: ${updatedSignup.email} (${user.id})`);
-      await cleanupChannelsForUser(supabase, user.id, updatedSignup.email);
+      console.log(`🧹 === NETTOYAGE RÉEL DES CANAUX ===`);
+      console.log(`📧 Pour utilisateur: ${updatedSignup.email} (${user.id})`);
+      
+      await logEvent({
+        function_name: 'stripe-success',
+        event: 'cleanup_channels_started',
+        user_id: user.id,
+        user_email: updatedSignup.email
+      });
+      
+      try {
+        const { data: cleanupData, error: cleanupError } = await supabase.functions.invoke('cleanup-channels', {
+          body: {
+            user_id: user.id,
+            user_email: updatedSignup.email
+          }
+        });
+
+        if (cleanupError) {
+          console.error('❌ Erreur cleanup-channels:', cleanupError);
+          await logEvent({
+            function_name: 'stripe-success',
+            event: 'cleanup_channels_error',
+            user_id: user.id,
+            user_email: updatedSignup.email,
+            level: 'error',
+            details: { error: cleanupError }
+          });
+        } else {
+          console.log('✅ Cleanup-channels réussi:', cleanupData);
+          cleanupResult = cleanupData;
+          await logEvent({
+            function_name: 'stripe-success',
+            event: 'cleanup_channels_success',
+            user_id: user.id,
+            user_email: updatedSignup.email,
+            details: { response: cleanupData }
+          });
+        }
+      } catch (cleanupErr) {
+        console.error('❌ Erreur critique cleanup:', cleanupErr);
+        await logEvent({
+          function_name: 'stripe-success',
+          event: 'cleanup_channels_critical_error',
+          user_id: user.id,
+          user_email: updatedSignup.email,
+          level: 'error',
+          details: { error: cleanupErr.message }
+        });
+      }
+      
+      console.log(`🧹 === FIN NETTOYAGE DES CANAUX ===`);
     }
 
-    // 🎯 CRÉER LE WORKFLOW N8N RÉEL (plus de simulation)
+    // 🎯 CRÉER LE WORKFLOW N8N RÉEL
     console.log('🚀 === CRÉATION WORKFLOW N8N RÉEL ===');
     console.log(`📧 Email client: ${updatedSignup.email}`);
     console.log(`👤 Nom client: ${updatedSignup.business_name}`);
@@ -250,6 +222,7 @@ serve(async (req) => {
       user_email: updatedSignup.email
     });
     
+    let workflowResult = null;
     try {
       const { data: workflowData, error: workflowError } = await supabase.functions.invoke('create-n8n-workflow', {
         body: {
@@ -270,6 +243,7 @@ serve(async (req) => {
         });
       } else {
         console.log('✅ Workflow N8N créé avec succès:', workflowData);
+        workflowResult = workflowData;
         await logEvent({
           function_name: 'stripe-success',
           event: 'n8n_workflow_created',
@@ -331,21 +305,23 @@ serve(async (req) => {
       user_id: user?.id,
       user_email: updatedSignup.email,
       details: {
-        workflow_created: true,
-        channels_cleaned: true,
+        workflow_created: !!workflowResult,
+        channels_cleaned: !!cleanupResult,
         success: true
       }
     });
 
-    // Pour les appels POST (depuis le frontend), retourner une réponse JSON
+    // Pour les appels POST (depuis le frontend), retourner une réponse JSON COMPLÈTE
     if (req.method === 'POST') {
       return new Response(JSON.stringify({
         success: true,
         message: 'Paiement traité avec succès',
         user_email: updatedSignup.email,
         user_id: user?.id,
-        workflow_created: true,
-        channels_cleaned: true
+        workflow_created: !!workflowResult,
+        workflow_data: workflowResult,
+        channels_cleaned: !!cleanupResult,
+        cleanup_data: cleanupResult
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });

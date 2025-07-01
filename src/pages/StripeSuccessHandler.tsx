@@ -24,8 +24,8 @@ const StripeSuccessHandler = () => {
           throw new Error('Paramètres manquants');
         }
 
-        // Appeler directement la fonction stripe-success
-        console.log('🔄 Appel de la fonction stripe-success...');
+        // Appeler la fonction stripe-success qui fait TOUT le travail maintenant
+        console.log('🔄 Appel de la fonction stripe-success (complète)...');
         setDebugInfo(prev => ({ ...prev, step: 'calling_stripe_success' }));
         
         const { data, error } = await supabase.functions.invoke('stripe-success', {
@@ -35,36 +35,30 @@ const StripeSuccessHandler = () => {
           }
         });
 
-        console.log('📊 Réponse stripe-success:', data, error);
-        setDebugInfo(prev => ({ ...prev, stripe_response: data, stripe_error: error }));
+        console.log('📊 Réponse stripe-success complète:', data, error);
+        setDebugInfo(prev => ({ 
+          ...prev, 
+          stripe_response: data, 
+          stripe_error: error,
+          step: 'stripe_success_completed'
+        }));
 
         if (error) {
           console.error('❌ Erreur stripe-success:', error);
           throw error;
         }
 
-        console.log('✅ Stripe-success terminé avec succès');
+        console.log('✅ Traitement complet terminé avec succès');
+        console.log('🧹 Nettoyage des canaux:', data?.channels_cleaned ? 'RÉUSSI' : 'NON FAIT');
+        console.log('🚀 Création workflow:', data?.workflow_created ? 'RÉUSSI' : 'NON FAIT');
+        console.log('👤 Utilisateur:', data?.user_email);
+        
         setStatus('success');
         
-        // Si nous avons reçu les informations utilisateur, utiliser le bon nettoyage
-        if (data && data.user_email && data.user_id) {
-          console.log(`🧹 Déclenchement nettoyage pour le BON utilisateur: ${data.user_email}`);
-          try {
-            const { data: cleanupData, error: cleanupError } = await supabase.functions.invoke('cleanup-channels', {
-              body: {
-                user_id: data.user_id,
-                user_email: data.user_email
-              }
-            });
-            console.log('🧹 Résultat nettoyage:', cleanupData, cleanupError);
-            setDebugInfo(prev => ({ ...prev, cleanup_response: cleanupData, cleanup_error: cleanupError }));
-          } catch (cleanupErr) {
-            console.error('❌ Erreur nettoyage:', cleanupErr);
-          }
-        }
-        
-        // Rediriger vers les canaux
-        navigate('/?payment_success=true');
+        // Rediriger vers les canaux après un petit délai
+        setTimeout(() => {
+          navigate('/?payment_success=true');
+        }, 2000);
 
       } catch (error) {
         console.error('❌ Erreur dans StripeSuccessHandler:', error);
@@ -88,7 +82,7 @@ const StripeSuccessHandler = () => {
           <>
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
             <h1 className="text-2xl font-bold mb-4">Traitement du paiement...</h1>
-            <p className="text-gray-600 mb-4">Création de votre compte et nettoyage des canaux en cours...</p>
+            <p className="text-gray-600 mb-4">Création de votre compte, nettoyage des canaux et configuration N8N en cours...</p>
           </>
         )}
         
@@ -96,7 +90,8 @@ const StripeSuccessHandler = () => {
           <>
             <div className="text-green-600 text-6xl mb-4">✓</div>
             <h1 className="text-2xl font-bold mb-4">Paiement réussi !</h1>
-            <p className="text-gray-600 mb-4">Redirection vers la configuration des canaux...</p>
+            <p className="text-gray-600 mb-4">Votre compte a été créé et configuré avec succès.</p>
+            <p className="text-sm text-gray-500 mb-4">Redirection vers la configuron des canaux...</p>
           </>
         )}
         
@@ -104,7 +99,8 @@ const StripeSuccessHandler = () => {
           <>
             <div className="text-red-600 text-6xl mb-4">✗</div>
             <h1 className="text-2xl font-bold mb-4">Erreur de traitement</h1>
-            <p className="text-gray-600 mb-4">Redirection vers la page d'accueil...</p>
+            <p className="text-gray-600 mb-4">Une erreur s'est produite lors du traitement.</p>
+            <p className="text-sm text-gray-500 mb-4">Redirection vers la page d'accueil...</p>
           </>
         )}
 
