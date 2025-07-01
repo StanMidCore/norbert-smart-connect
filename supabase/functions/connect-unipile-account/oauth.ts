@@ -1,6 +1,6 @@
 
 import type { ConnectionResponse } from './types.ts';
-import { storeEmailChannel } from './database.ts';
+import { storeEmailChannel, storeInstagramChannel } from './database.ts';
 
 const OAUTH_PROVIDERS = {
   GMAIL: 'GOOGLE_OAUTH',
@@ -33,14 +33,6 @@ export async function handleOAuthConnection(
       provider: unipileProvider
     };
 
-    // Log pour Instagram spécifiquement
-    if (provider.toUpperCase() === 'INSTAGRAM') {
-      console.log('📱 CONNEXION INSTAGRAM - Paramètres:');
-      console.log('  - Provider Unipile:', unipileProvider);
-      console.log('  - User ID:', userId);
-      console.log('  - API Key présente:', !!unipileApiKey);
-    }
-
     console.log('📤 Corps de la requête:', JSON.stringify(requestBody, null, 2));
 
     const response = await fetch('https://api2.unipile.com:13279/api/v1/accounts', {
@@ -56,20 +48,10 @@ export async function handleOAuthConnection(
     const result = await response.json();
     console.log(`📊 Réponse complète API Unipile ${provider}:`, JSON.stringify(result, null, 2));
     console.log('🔍 Status HTTP:', response.status);
-    console.log('🔍 Headers reçus:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       console.error(`❌ Erreur HTTP API Unipile ${provider}:`, response.status, response.statusText);
       console.error('❌ Détails erreur:', JSON.stringify(result, null, 2));
-      
-      // Logs spéciaux pour Instagram
-      if (provider.toUpperCase() === 'INSTAGRAM') {
-        console.error('🚨 ERREUR INSTAGRAM SPÉCIFIQUE:');
-        console.error('  - Status:', response.status);
-        console.error('  - Message:', result.message || result.detail);
-        console.error('  - Code erreur:', result.code);
-        console.error('  - Erreur complète:', JSON.stringify(result, null, 2));
-      }
       
       return {
         success: false,
@@ -84,18 +66,6 @@ export async function handleOAuthConnection(
     console.log(`🆔 Account ID ${provider}:`, accountId);
     console.log(`🔗 URL d'autorisation ${provider}:`, authUrl ? 'Présente' : 'Absente');
 
-    // Logs détaillés pour Instagram
-    if (provider.toUpperCase() === 'INSTAGRAM') {
-      console.log('📱 RÉPONSE INSTAGRAM DÉTAILLÉE:');
-      console.log('  - Account ID:', accountId);
-      console.log('  - Auth URL:', authUrl);
-      console.log('  - Toutes les clés de réponse:', Object.keys(result));
-      console.log('  - Checkpoint présent:', !!result.checkpoint);
-      if (result.checkpoint) {
-        console.log('  - Détails checkpoint:', JSON.stringify(result.checkpoint, null, 2));
-      }
-    }
-
     if (accountId) {
       if (provider.toUpperCase() === 'GMAIL' || provider.toUpperCase() === 'OUTLOOK') {
         console.log(`💾 Sauvegarde du canal email ${provider} en base...`);
@@ -103,24 +73,8 @@ export async function handleOAuthConnection(
         console.log(`✅ Canal ${provider} sauvegardé`);
       } else if (provider.toUpperCase() === 'INSTAGRAM') {
         console.log('💾 Sauvegarde du canal Instagram en base...');
-        const { error: insertError } = await supabase
-          .from('channels')
-          .insert({
-            user_id: userId,
-            unipile_account_id: accountId,
-            channel_type: 'instagram',
-            status: 'pending',
-            provider_info: {
-              provider: 'Instagram',
-              account_id: accountId
-            }
-          });
-
-        if (insertError) {
-          console.error('❌ Erreur sauvegarde canal Instagram:', insertError);
-        } else {
-          console.log('✅ Canal Instagram sauvegardé');
-        }
+        await storeInstagramChannel(supabase, userId, accountId);
+        console.log('✅ Canal Instagram sauvegardé');
       }
     } else {
       console.warn(`⚠️ Aucun account_id trouvé dans la réponse ${provider}`);
@@ -148,15 +102,6 @@ export async function handleOAuthConnection(
     console.error('📊 Type d\'erreur:', typeof error);
     console.error('📊 Message d\'erreur:', error.message);
     console.error('📊 Stack trace:', error.stack);
-    
-    // Log spécial pour Instagram
-    if (provider.toUpperCase() === 'INSTAGRAM') {
-      console.error('🚨 ERREUR CRITIQUE INSTAGRAM:', {
-        message: error.message,
-        name: error.name,
-        stack: error.stack?.substring(0, 500)
-      });
-    }
     
     return {
       success: false,

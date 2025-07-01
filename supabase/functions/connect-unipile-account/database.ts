@@ -71,3 +71,27 @@ export const storeEmailChannel = async (supabase: any, userId: string, accountId
   
   console.log(`✅ Canal ${provider} inséré avec succès`);
 };
+
+export const storeInstagramChannel = async (supabase: any, userId: string, accountId: string) => {
+  console.log('💾 Insertion canal Instagram en base...');
+  
+  const { error } = await supabase
+    .from('channels')
+    .insert({
+      user_id: userId,
+      unipile_account_id: accountId,
+      channel_type: 'instagram',
+      status: 'pending',
+      provider_info: {
+        provider: 'Instagram',
+        account_id: accountId
+      }
+    });
+
+  if (error) {
+    console.error('❌ Erreur insertion canal Instagram:', error);
+    throw error;
+  }
+  
+  console.log('✅ Canal Instagram inséré avec succès');
+};
