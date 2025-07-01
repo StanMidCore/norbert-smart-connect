@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@/types/norbert';
@@ -179,7 +180,29 @@ export const useNorbertUser = () => {
     setError(null);
     
     try {
-      // Try to get demo user first
+      // Vérifier les paramètres URL pour un utilisateur spécifique après paiement
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymentSuccess = urlParams.get('payment_success');
+      
+      if (paymentSuccess === 'true') {
+        // Chercher le dernier utilisateur créé (le plus récent)
+        console.log('🔍 Recherche du dernier utilisateur créé après paiement...');
+        const { data: recentUsers, error: recentError } = await supabase
+          .from('users')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (recentUsers && recentUsers.length > 0 && !recentError) {
+          const latestUser = recentUsers[0];
+          console.log('✅ Utilisateur récent trouvé:', latestUser.email);
+          setUser(latestUser);
+          return latestUser;
+        }
+      }
+
+      // Si pas de paiement récent, chercher l'utilisateur démo comme fallback
+      console.log('🔍 Recherche utilisateur démo en fallback...');
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -192,13 +215,12 @@ export const useNorbertUser = () => {
         return data;
       }
 
-      // If no demo user, that's OK
-      console.log('ℹ️ Aucun utilisateur demo, prêt pour création');
+      // Si aucun utilisateur trouvé
+      console.log('ℹ️ Aucun utilisateur trouvé, prêt pour création');
       setUser(null);
       return null;
     } catch (err) {
       console.error('❌ Erreur getCurrentUser:', err);
-      // Don't set error for missing demo user
       setUser(null);
       return null;
     } finally {

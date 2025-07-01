@@ -33,8 +33,8 @@ const Index = () => {
     if (paymentSuccess === 'true') {
       console.log('🎉 Paiement réussi détecté dans l\'URL, redirection vers canaux');
       setCurrentScreen('channels');
-      // Nettoyer l'URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Nettoyer l'URL mais garder le paramètre pour useNorbertUser
+      window.history.replaceState({}, document.title, window.location.pathname + '?payment_success=true');
     } else if (paymentError === 'true') {
       console.log('❌ Erreur de paiement détectée dans l\'URL');
       setCurrentScreen('signup');
@@ -46,6 +46,8 @@ const Index = () => {
   
   const handleChannelSetupComplete = () => {
     console.log('🔗 Configuration des canaux terminée, redirection vers profil');
+    // Nettoyer complètement l'URL après la configuration des canaux
+    window.history.replaceState({}, document.title, window.location.pathname);
     setCurrentScreen('profile');
   };
   
