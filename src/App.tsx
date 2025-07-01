@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import StripeSuccess from "./pages/StripeSuccess";
 import StripeSuccessHandler from "./pages/StripeSuccessHandler";
 import LogsViewer from "./pages/LogsViewer";
+import N8NWebhook from "./pages/N8NWebhook";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/api/stripe-success" element={<StripeSuccessHandler />} />
           <Route path="/stripe-success" element={<StripeSuccess />} />
           <Route path="/logs" element={<LogsViewer />} />
+          <Route path="/n8n-webhook" element={<N8NWebhook />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
