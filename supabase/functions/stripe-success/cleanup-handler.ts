@@ -18,6 +18,7 @@ export async function cleanupChannels(userId: string, userEmail: string) {
   const supabase = createClient(supabaseUrl, supabaseKey);
   
   try {
+    console.log('🔄 Appel de la fonction cleanup-channels...');
     const { data: cleanupData, error: cleanupError } = await supabase.functions.invoke('cleanup-channels', {
       body: {
         user_id: userId,

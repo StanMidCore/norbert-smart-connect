@@ -66,23 +66,35 @@ serve(async (req) => {
     }
 
     // Traitement du paiement
+    console.log('💳 Traitement du paiement...');
     const updatedSignup = await processPayment(sessionId, signupId);
     
     // Création du compte utilisateur
+    console.log('👤 Création du compte utilisateur...');
     const user = await createUserAccount(updatedSignup);
 
-    // Nettoyage des canaux
+    // Nettoyage des canaux - ASSURER QUE L'APPEL SE FAIT
+    console.log('🧹 DÉBUT NETTOYAGE DES CANAUX');
     let cleanupResult = null;
+    let channelsCleaned = false;
+    
     if (user?.id) {
+      console.log(`🧹 Appel cleanup pour user: ${user.id} (${updatedSignup.email})`);
       cleanupResult = await cleanupChannels(user.id, updatedSignup.email);
+      channelsCleaned = !!cleanupResult;
+      console.log(`🧹 Résultat cleanup: ${channelsCleaned ? 'RÉUSSI' : 'ÉCHEC'}`);
+    } else {
+      console.log('❌ Pas d\'ID utilisateur pour le nettoyage');
     }
 
     // Création du workflow N8N
+    console.log('🚀 Création du workflow N8N...');
     const workflowResult = await createN8NWorkflow(
       updatedSignup.email,
       updatedSignup.business_name,
       user?.id
     );
+    const workflowCreated = !!workflowResult;
 
     await logEvent({
       function_name: 'stripe-success',
@@ -90,8 +102,8 @@ serve(async (req) => {
       user_id: user?.id,
       user_email: updatedSignup.email,
       details: {
-        workflow_created: !!workflowResult,
-        channels_cleaned: !!cleanupResult,
+        workflow_created: workflowCreated,
+        channels_cleaned: channelsCleaned,
         success: true
       }
     });
@@ -100,11 +112,18 @@ serve(async (req) => {
       success: true,
       user_email: updatedSignup.email,
       user_id: user?.id,
-      workflow_created: !!workflowResult,
+      workflow_created: workflowCreated,
       workflow_data: workflowResult,
-      channels_cleaned: !!cleanupResult,
+      channels_cleaned: channelsCleaned,
       cleanup_data: cleanupResult
     };
+
+    console.log('✅ TRAITEMENT COMPLET TERMINÉ:', {
+      user_email: result.user_email,
+      user_id: result.user_id,
+      workflow_created: result.workflow_created,
+      channels_cleaned: result.channels_cleaned
+    });
 
     return createSuccessResponse(req.method, req.headers.get('origin'), result);
 
