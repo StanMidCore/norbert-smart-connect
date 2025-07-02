@@ -23,11 +23,6 @@ const Index = () => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-        
-        if (!session?.user && !loading) {
-          // Redirect to auth page if not authenticated
-          navigate('/auth');
-        }
       }
     );
 
@@ -36,14 +31,10 @@ const Index = () => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      
-      if (!session?.user) {
-        navigate('/auth');
-      }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, loading]);
+  }, []);
 
   const handleSetupComplete = () => {
     setIsSetupComplete(true);
@@ -87,17 +78,14 @@ const Index = () => {
     );
   }
 
-  if (!user) {
-    return null; // Will redirect to auth
-  }
-
   return (
     <div className="min-h-screen bg-app-bg">
       <div className="container mx-auto p-4">
         <div className="flex justify-between items-center mb-4">
           <div>
             <h1 className="text-2xl font-bold text-main">Configuration Norbert</h1>
-            <p className="text-sm text-main opacity-70">Connecté en tant que: {user.email}</p>
+            {user && <p className="text-sm text-main opacity-70">Connecté en tant que: {user.email}</p>}
+            {!user && <p className="text-sm text-main opacity-70">Mode test (pas d'authentification)</p>}
           </div>
           <div className="flex gap-2">
             <Button 
@@ -107,12 +95,22 @@ const Index = () => {
             >
               🔧 Accéder à N8N Webhook
             </Button>
-            <Button 
-              onClick={() => supabase.auth.signOut()}
-              variant="outline"
-            >
-              Se déconnecter
-            </Button>
+            {user && (
+              <Button 
+                onClick={() => supabase.auth.signOut()}
+                variant="outline"
+              >
+                Se déconnecter
+              </Button>
+            )}
+            {!user && (
+              <Button 
+                onClick={() => navigate('/auth')}
+                variant="outline"
+              >
+                Se connecter
+              </Button>
+            )}
           </div>
         </div>
         
@@ -120,7 +118,7 @@ const Index = () => {
         <Toaster />
         
         <ConversationCapture 
-          userMessage={`Utilisateur ${user.email} sur la page de configuration`}
+          userMessage={user ? `Utilisateur ${user.email} sur la page de configuration` : "Utilisateur test sur la page de configuration"}
           aiResponse="Page de configuration des canaux affichée"
           context="channel-setup"
         />
