@@ -17,13 +17,30 @@ export async function handleOAuthConnection(
   console.log(`🔄 DÉBUT Connexion OAuth ${provider} pour user:`, userId);
   
   try {
-    const unipileProvider = OAUTH_PROVIDERS[provider.toUpperCase()];
+    // Vérifier si le provider est supporté
+    const providerUpper = provider.toUpperCase();
+    const unipileProvider = OAUTH_PROVIDERS[providerUpper];
+    
     if (!unipileProvider) {
       console.error('❌ Provider non supporté:', provider);
-      return {
-        success: false,
-        error: `Provider ${provider} non supporté`
-      };
+      
+      // Messages spécifiques selon le provider
+      if (providerUpper === 'GMAIL') {
+        return {
+          success: false,
+          error: 'Gmail n\'est pas encore configuré avec votre compte Unipile. Contactez le support pour l\'activer.'
+        };
+      } else if (providerUpper === 'OUTLOOK') {
+        return {
+          success: false,
+          error: 'Outlook n\'est pas encore configuré avec votre compte Unipile. Contactez le support pour l\'activer.'
+        };
+      } else {
+        return {
+          success: false,
+          error: `Provider ${provider} non supporté pour le moment.`
+        };
+      }
     }
 
     console.log(`🔗 Création compte ${provider} via API Unipile...`);
@@ -53,10 +70,23 @@ export async function handleOAuthConnection(
       console.error(`❌ Erreur HTTP API Unipile ${provider}:`, response.status, response.statusText);
       console.error('❌ Détails erreur:', JSON.stringify(result, null, 2));
       
-      return {
-        success: false,
-        error: `Erreur API Unipile ${provider} (${response.status}): ${result.message || result.detail || JSON.stringify(result)}`
-      };
+      // Messages d'erreur plus explicites
+      if (response.status === 400) {
+        return {
+          success: false,
+          error: `${provider} n'est pas configuré correctement dans votre compte Unipile. Veuillez vérifier la configuration ou contacter le support.`
+        };
+      } else if (response.status === 401) {
+        return {
+          success: false,
+          error: 'Clé API Unipile invalide. Veuillez vérifier votre configuration.'
+        };
+      } else {
+        return {
+          success: false,
+          error: `Erreur de configuration du serveur pour ${provider}. Contactez le support technique.`
+        };
+      }
     }
 
     // Extraction des données de réponse
@@ -93,7 +123,7 @@ export async function handleOAuthConnection(
       console.error('📊 Structure complète de la réponse:', JSON.stringify(result, null, 2));
       return {
         success: false,
-        error: `URL d'autorisation ${provider} non disponible. Vérifiez la configuration Unipile.`
+        error: `${provider} ne peut pas être connecté pour le moment. Veuillez contacter le support.`
       };
     }
 
@@ -105,7 +135,7 @@ export async function handleOAuthConnection(
     
     return {
       success: false,
-      error: `Erreur technique ${provider}: ${error.message || 'Erreur inconnue'}`
+      error: `Erreur technique lors de la connexion ${provider}. Veuillez réessayer plus tard.`
     };
   } finally {
     console.log(`🔄 FIN Connexion OAuth ${provider} pour user:`, userId);

@@ -1,5 +1,3 @@
-
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 
 export const getDemoUser = async () => {
@@ -8,11 +6,11 @@ export const getDemoUser = async () => {
   
   const supabase = createClient(supabaseUrl, supabaseKey);
   
-  // Récupérer l'utilisateur demo avec l'email stan@stokn.io
+  // Récupérer l'utilisateur demo avec l'email demo@norbert.ai
   const { data: user, error } = await supabase
     .from('users')
     .select('*')
-    .eq('email', 'stan@stokn.io')
+    .eq('email', 'demo@norbert.ai')
     .single();
   
   if (error || !user) {
@@ -111,4 +109,3 @@ export const storeInstagramChannel = async (supabase: any, userId: string, accou
     throw error;
   }
 };
-
