@@ -18,8 +18,18 @@ const Index = () => {
     navigate('/n8n-webhook');
   };
 
+  const handleNavigate = (screen: string) => {
+    console.log('Navigation vers:', screen);
+    // TODO: Implémenter la navigation entre les écrans du dashboard
+  };
+
+  const handleClientDetail = (clientId: string) => {
+    console.log('Détail client:', clientId);
+    // TODO: Implémenter l'affichage du détail client
+  };
+
   if (isSetupComplete) {
-    return <Dashboard />;
+    return <Dashboard onNavigate={handleNavigate} onClientDetail={handleClientDetail} />;
   }
 
   return (
