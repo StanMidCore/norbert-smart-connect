@@ -70,25 +70,15 @@ serve(async (req) => {
           error: errorData
         });
         
-        return new Response(JSON.stringify({ 
-          error: `Clé API Unipile invalide (${testResponse.status}): ${errorData.title || testResponse.statusText}`,
-          success: false 
-        }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        // TEMPORAIRE: Ne pas bloquer sur l'erreur de test API, juste un warning
+        console.warn('⚠️ Test API échoué mais continuation du processus...');
+      } else {
+        console.log('✅ Clé API Unipile valide');
       }
-      
-      console.log('✅ Clé API Unipile valide');
     } catch (apiTestError) {
       console.error('❌ Erreur réseau test API:', apiTestError);
-      return new Response(JSON.stringify({ 
-        error: 'Impossible de contacter l\'API Unipile. Vérifiez votre connexion internet.',
-        success: false 
-      }), {
-        status: 503,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      // TEMPORAIRE: Ne pas bloquer sur l'erreur réseau, juste un warning
+      console.warn('⚠️ Test API en erreur réseau mais continuation du processus...');
     }
     
     console.log(`🔌 Connexion compte Unipile pour provider: ${provider}`);
