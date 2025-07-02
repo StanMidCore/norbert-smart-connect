@@ -15,28 +15,11 @@ interface AvailableProvidersListProps {
 const AvailableProvidersList = ({ channels, connecting, onConnect }: AvailableProvidersListProps) => {
   const availableProviders = [
     {
-      id: 'whatsapp',
-      name: 'WhatsApp Business',
-      icon: MessageSquare,
-      color: 'text-green-600',
-      description: 'Connectez votre WhatsApp Business',
-      available: true,
-    },
-    {
-      id: 'instagram',
-      name: 'Instagram',
-      icon: Instagram,
-      color: 'text-pink-600',
-      description: 'Connectez votre compte Instagram',
-      available: true,
-    },
-    {
       id: 'gmail',
       name: 'Gmail',
       icon: Mail,
       color: 'text-red-600',
       description: 'Connectez votre compte Gmail',
-      available: true,
     },
     {
       id: 'outlook',
@@ -44,7 +27,20 @@ const AvailableProvidersList = ({ channels, connecting, onConnect }: AvailablePr
       icon: Mail,
       color: 'text-blue-600',
       description: 'Connectez votre compte Outlook',
-      available: true,
+    },
+    {
+      id: 'whatsapp',
+      name: 'WhatsApp Business',
+      icon: MessageSquare,
+      color: 'text-green-600',
+      description: 'Connectez votre WhatsApp Business',
+    },
+    {
+      id: 'instagram',
+      name: 'Instagram',
+      icon: Instagram,
+      color: 'text-pink-600',
+      description: 'Connectez votre compte Instagram',
     },
   ];
 
@@ -64,9 +60,7 @@ const AvailableProvidersList = ({ channels, connecting, onConnect }: AvailablePr
                 <div className="flex items-center space-x-3">
                   <Icon className={`h-8 w-8 ${provider.color}`} />
                   <div>
-                    <div className="flex items-center space-x-2">
-                      <h3 className="font-medium text-main">{provider.name}</h3>
-                    </div>
+                    <h3 className="font-medium text-main">{provider.name}</h3>
                     <p className="text-sm text-main opacity-70">{provider.description}</p>
                   </div>
                 </div>

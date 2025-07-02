@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from './constants.ts';
-import { getCurrentUser } from './database.ts';
+import { corsHeaders, providerMapping } from './constants.ts';
+import { getDemoUser } from './database.ts';
 import { handleWhatsAppConnection } from './whatsapp.ts';
 import { handleOAuthConnection } from './oauth.ts';
 import type { ConnectionResponse } from './types.ts';
@@ -12,45 +12,38 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log('🔄 DÉBUT Connexion compte Unipile...');
-
   try {
     const { provider } = await req.json();
-    console.log('📋 Provider demandé:', provider);
     
     if (!provider) {
-      console.error('❌ Provider manquant');
       return new Response(JSON.stringify({ 
-        error: 'Provider requis',
-        success: false 
+        error: 'Provider requis' 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Get current user and database connection
-    console.log('👤 Récupération utilisateur actuel...');
-    const { user, supabase } = await getCurrentUser();
-    console.log('✅ Utilisateur trouvé:', user.email);
+    // Get demo user and database connection
+    const { user, supabase } = await getDemoUser();
 
     // Get Unipile API key with better error handling
     const unipileApiKey = Deno.env.get('UNIPILE_API_KEY');
-    console.log('🔑 Vérification clé API Unipile:', unipileApiKey ? 'Présente' : 'Absente');
+    console.log('Vérification clé API Unipile:', unipileApiKey ? 'Présente' : 'Absente');
     
     if (!unipileApiKey) {
-      console.error('❌ Clé API Unipile manquante dans les secrets');
+      console.error('Clé API Unipile manquante dans les secrets');
       return new Response(JSON.stringify({ 
         error: 'Configuration manquante: clé API Unipile non configurée. Veuillez vérifier vos secrets Supabase.',
         success: false 
       }), {
-        status: 400,
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // Test the API key with a simple request
-    console.log('🧪 Test de la clé API Unipile...');
+    console.log('Test de la clé API Unipile...');
     try {
       const testResponse = await fetch('https://api2.unipile.com:13279/api/v1/accounts', {
         method: 'GET',
@@ -60,77 +53,84 @@ serve(async (req) => {
         }
       });
       
-      console.log('📊 Test API - Status:', testResponse.status);
-      
       if (!testResponse.ok) {
+        console.error('Erreur test API Unipile:', testResponse.status, testResponse.statusText);
         const errorData = await testResponse.json().catch(() => ({}));
-        console.error('❌ Erreur test API Unipile:', {
-          status: testResponse.status,
-          statusText: testResponse.statusText,
-          error: errorData
+        return new Response(JSON.stringify({ 
+          error: `Clé API Unipile invalide (${testResponse.status}): ${errorData.title || testResponse.statusText}`,
+          success: false 
+        }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
-        
-        // TEMPORAIRE: Ne pas bloquer sur l'erreur de test API, juste un warning
-        console.warn('⚠️ Test API échoué mais continuation du processus...');
-      } else {
-        console.log('✅ Clé API Unipile valide');
       }
+      
+      console.log('✅ Clé API Unipile valide');
     } catch (apiTestError) {
-      console.error('❌ Erreur réseau test API:', apiTestError);
-      // TEMPORAIRE: Ne pas bloquer sur l'erreur réseau, juste un warning
-      console.warn('⚠️ Test API en erreur réseau mais continuation du processus...');
+      console.error('Erreur réseau test API:', apiTestError);
+      return new Response(JSON.stringify({ 
+        error: 'Impossible de contacter l\'API Unipile. Vérifiez votre connexion internet.',
+        success: false 
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
     
-    console.log(`🔌 Connexion compte Unipile pour provider: ${provider}`);
+    console.log('Connexion compte Unipile pour provider:', provider);
 
     let result: ConnectionResponse;
 
-    // Handle different providers
-    const providerLower = provider.toLowerCase();
-    
-    if (providerLower === 'whatsapp') {
-      console.log('📱 Traitement WhatsApp...');
+    // Handle WhatsApp connection
+    if (provider.toLowerCase() === 'whatsapp') {
       result = await handleWhatsAppConnection(unipileApiKey, supabase, user.id);
-    } else if (['gmail', 'outlook', 'instagram'].includes(providerLower)) {
-      console.log(`📧 Traitement OAuth ${provider}...`);
-      result = await handleOAuthConnection(provider, unipileApiKey, supabase, user.id);
-    } else {
-      console.error('❌ Provider non supporté:', provider);
+    }
+    // Handle OAuth providers (Gmail, Outlook, Facebook)
+    else if (['gmail', 'outlook', 'facebook'].includes(provider.toLowerCase())) {
+      const unipileProvider = providerMapping[provider.toLowerCase()];
+      const origin = req.headers.get('origin') || 'https://dmcgxjmkvqfyvsfsiexe.supabase.co';
+      
+      result = await handleOAuthConnection(provider, unipileProvider, unipileApiKey, origin);
+    }
+    // Handle Instagram
+    else if (provider.toLowerCase() === 'instagram') {
       result = {
         success: false,
-        error: `Provider ${provider} non supporté`
+        error: 'Instagram nécessite une configuration manuelle via le dashboard Unipile.',
+        requires_manual_setup: true
       };
     }
-
-    console.log('📋 Résultat final:', result.success ? 'SUCCÈS' : 'ÉCHEC');
-    if (!result.success) {
-      console.error('❌ Détails erreur:', result.error);
+    // Handle unsupported providers
+    else {
+      const unipileProvider = providerMapping[provider.toLowerCase()];
+      if (!unipileProvider) {
+        result = {
+          success: false,
+          error: `Provider ${provider} non supporté`
+        };
+      } else {
+        result = {
+          success: false,
+          error: `Provider ${provider} non supporté pour la connexion automatique`
+        };
+      }
     }
 
     // Return response
-    const statusCode = result.success ? 200 : 400;
+    const statusCode = result.success ? 200 : (result.requires_manual_setup ? 400 : 400);
     return new Response(JSON.stringify(result), {
       status: statusCode,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('❌ Erreur CRITIQUE connexion compte Unipile:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      type: typeof error
-    });
-    
+    console.error('Erreur connexion compte Unipile:', error);
     return new Response(JSON.stringify({ 
-      error: `Erreur technique: ${error.message || 'Erreur inconnue'}`,
-      details: error.name || 'Type inconnu',
+      error: error.message,
       success: false 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  } finally {
-    console.log('🔄 FIN Connexion compte Unipile');
   }
 });

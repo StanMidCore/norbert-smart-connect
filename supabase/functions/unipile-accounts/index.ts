@@ -19,39 +19,23 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get current user (latest created user)
-    const { data: users, error: userError } = await supabase
+    // Get demo user
+    const { data: user, error: userError } = await supabase
       .from('users')
       .select('*')
-      .order('created_at', { ascending: false })
-      .limit(1);
+      .eq('email', 'demo@norbert.ai')
+      .single();
 
-    let user;
-    if (userError || !users || users.length === 0) {
-      console.log('❌ Aucun utilisateur trouvé, fallback vers demo');
-      // Fallback vers demo
-      const { data: demoUser, error: demoError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', 'demo@norbert.ai')
-        .single();
-      
-      if (demoError || !demoUser) {
-        console.error('Utilisateur démo non trouvé:', demoError);
-        return new Response(JSON.stringify({ 
-          error: 'Aucun utilisateur trouvé',
-          success: false 
-        }), {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      user = demoUser;
-    } else {
-      user = users[0];
+    if (userError || !user) {
+      console.error('Utilisateur démo non trouvé:', userError);
+      return new Response(JSON.stringify({ 
+        error: 'Utilisateur non trouvé',
+        success: false 
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
-
-    console.log('✅ Utilisateur actuel:', user.email);
 
     // Récupération de la clé API depuis les secrets Supabase
     const unipileApiKey = Deno.env.get('UNIPILE_API_KEY');
@@ -190,7 +174,6 @@ serve(async (req) => {
         accounts: validAccounts,
         norbert_channels: [],
         debug_info: {
-          user_email: user.email,
           total_accounts: accountsArray.length,
           valid_accounts: validAccounts.length,
           unipile_response_type: typeof unipileResponse,

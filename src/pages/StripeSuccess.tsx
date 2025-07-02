@@ -6,7 +6,8 @@ const StripeSuccess = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Rediriger vers l'accueil avec le paramètre de succès
+    // Cette page ne devrait jamais être vue car stripe-success redirige automatiquement
+    // Mais au cas où, rediriger vers l'accueil
     const timer = setTimeout(() => {
       navigate('/?payment_success=true');
     }, 1000);
@@ -17,9 +18,8 @@ const StripeSuccess = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-        <h1 className="text-2xl font-bold mb-4">Paiement confirmé</h1>
-        <p className="text-gray-600">Redirection en cours...</p>
+        <h1 className="text-2xl font-bold mb-4">Traitement en cours...</h1>
+        <p className="text-gray-600">Votre paiement est en cours de validation.</p>
       </div>
     </div>
   );
