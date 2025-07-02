@@ -4,6 +4,7 @@ import type { User } from '@/types/norbert';
 import { userService } from '@/services/userService';
 import { channelCleanupService } from '@/services/channelCleanupService';
 import { workflowService } from '@/services/workflowService';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useNorbertUser = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -72,51 +73,40 @@ export const useNorbertUser = () => {
     setError(null);
     
     try {
-      // Vérifier les paramètres URL pour un utilisateur spécifique après paiement
-      const urlParams = new URLSearchParams(window.location.search);
-      const paymentSuccess = urlParams.get('payment_success');
-      const userEmail = urlParams.get('user_email');
+      // Récupérer l'utilisateur authentifié de Supabase Auth
+      const { data: { session } } = await supabase.auth.getSession();
       
-      // Si on a un email spécifié dans l'URL, l'utiliser
-      if (userEmail) {
-        console.log('🔍 Email utilisateur trouvé dans URL:', userEmail);
-        const userByEmail = await userService.findByEmail(decodeURIComponent(userEmail));
-        
-        if (userByEmail) {
-          console.log('✅ Utilisateur trouvé par email URL:', userByEmail.email);
-          setUser(userByEmail);
-          return userByEmail;
-        }
-      }
-      
-      if (paymentSuccess === 'true') {
-        // Chercher le dernier utilisateur créé (le plus récent)
-        console.log('🔍 Recherche du dernier utilisateur créé après paiement...');
-        const latestUser = await userService.getMostRecentUser();
-        
-        if (latestUser) {
-          console.log('✅ Utilisateur récent trouvé:', latestUser.email);
-          setUser(latestUser);
-          return latestUser;
-        }
+      if (!session?.user) {
+        console.log('❌ Aucun utilisateur authentifié trouvé');
+        setUser(null);
+        return null;
       }
 
-      // En dernier recours, chercher l'utilisateur démo
-      console.log('🔍 Recherche utilisateur démo en fallback...');
-      const demoUser = await userService.getDemoUser();
-      
-      if (demoUser) {
-        console.log('✅ Utilisateur demo trouvé:', demoUser.id);
-        setUser(demoUser);
-        return demoUser;
+      const authenticatedUserEmail = session.user.email;
+      if (!authenticatedUserEmail) {
+        console.log('❌ Email utilisateur authentifié manquant');
+        setUser(null);
+        return null;
       }
 
-      // Si aucun utilisateur trouvé
-      console.log('ℹ️ Aucun utilisateur trouvé, prêt pour création');
-      setUser(null);
-      return null;
+      console.log('✅ Utilisateur authentifié trouvé:', authenticatedUserEmail);
+      
+      // Chercher l'utilisateur dans notre base de données
+      const userByEmail = await userService.findByEmail(authenticatedUserEmail);
+      
+      if (userByEmail) {
+        console.log('✅ Utilisateur trouvé dans la base:', userByEmail.email);
+        setUser(userByEmail);
+        return userByEmail;
+      }
+
+      // Si pas trouvé, créer l'utilisateur avec les données d'auth
+      console.log('🔄 Création utilisateur depuis auth:', authenticatedUserEmail);
+      const newUser = await createOrGetUser(authenticatedUserEmail);
+      return newUser;
     } catch (err) {
       console.error('❌ Erreur getCurrentUser:', err);
+      setError(err instanceof Error ? err.message : 'Erreur inconnue');
       setUser(null);
       return null;
     } finally {
