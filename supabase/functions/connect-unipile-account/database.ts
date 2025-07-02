@@ -1,21 +1,37 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 
-export const getDemoUser = async () => {
+export const getCurrentUser = async () => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   
   const supabase = createClient(supabaseUrl, supabaseKey);
   
-  // Récupérer l'utilisateur demo avec l'email demo@norbert.ai
-  const { data: user, error } = await supabase
+  // Récupérer le dernier utilisateur créé (le plus récent)
+  const { data: users, error } = await supabase
     .from('users')
     .select('*')
-    .eq('email', 'demo@norbert.ai')
-    .single();
+    .order('created_at', { ascending: false })
+    .limit(1);
   
-  if (error || !user) {
-    throw new Error(`Utilisateur demo non trouvé: ${error?.message}`);
+  if (error || !users || users.length === 0) {
+    console.log('❌ Aucun utilisateur trouvé, fallback vers demo');
+    // Fallback vers demo si aucun utilisateur
+    const { data: demoUser, error: demoError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', 'demo@norbert.ai')
+      .single();
+    
+    if (demoError || !demoUser) {
+      throw new Error(`Aucun utilisateur trouvé: ${demoError?.message}`);
+    }
+    
+    return { user: demoUser, supabase };
   }
+  
+  const user = users[0];
+  console.log('✅ Utilisateur actuel trouvé:', user.email);
   
   return { user, supabase };
 };

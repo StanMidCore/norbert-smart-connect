@@ -1,8 +1,7 @@
 
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from './constants.ts';
-import { getDemoUser } from './database.ts';
+import { getCurrentUser } from './database.ts';
 import { handleWhatsAppConnection } from './whatsapp.ts';
 import { handleOAuthConnection } from './oauth.ts';
 import type { ConnectionResponse } from './types.ts';
@@ -30,9 +29,9 @@ serve(async (req) => {
       });
     }
 
-    // Get demo user and database connection
-    console.log('👤 Récupération utilisateur demo...');
-    const { user, supabase } = await getDemoUser();
+    // Get current user and database connection
+    console.log('👤 Récupération utilisateur actuel...');
+    const { user, supabase } = await getCurrentUser();
     console.log('✅ Utilisateur trouvé:', user.email);
 
     // Get Unipile API key with better error handling
@@ -137,4 +136,3 @@ serve(async (req) => {
     console.log('🔄 FIN Connexion compte Unipile');
   }
 });
-

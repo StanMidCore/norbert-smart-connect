@@ -75,6 +75,19 @@ export const useNorbertUser = () => {
       // Vérifier les paramètres URL pour un utilisateur spécifique après paiement
       const urlParams = new URLSearchParams(window.location.search);
       const paymentSuccess = urlParams.get('payment_success');
+      const userEmail = urlParams.get('user_email');
+      
+      // Si on a un email spécifié dans l'URL, l'utiliser
+      if (userEmail) {
+        console.log('🔍 Email utilisateur trouvé dans URL:', userEmail);
+        const userByEmail = await userService.findByEmail(decodeURIComponent(userEmail));
+        
+        if (userByEmail) {
+          console.log('✅ Utilisateur trouvé par email URL:', userByEmail.email);
+          setUser(userByEmail);
+          return userByEmail;
+        }
+      }
       
       if (paymentSuccess === 'true') {
         // Chercher le dernier utilisateur créé (le plus récent)
@@ -88,7 +101,7 @@ export const useNorbertUser = () => {
         }
       }
 
-      // Si pas de paiement récent, chercher l'utilisateur démo comme fallback
+      // En dernier recours, chercher l'utilisateur démo
       console.log('🔍 Recherche utilisateur démo en fallback...');
       const demoUser = await userService.getDemoUser();
       
