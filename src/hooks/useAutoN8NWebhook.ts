@@ -70,7 +70,7 @@ export const useAutoN8NWebhook = () => {
               session_id: sessionStorage.getItem('session_id') || 'unknown'
             }
           },
-          webhookUrl: webhookUrl
+          webhookUrl: https://n8n.srv784558.hstgr.cloud/webhook-test/7ccc45da-ffe6-49d0-bc81-0b7998ffad95
         }
       });
     } catch (error) {
