@@ -13,21 +13,33 @@ const ConversationCapture: React.FC<ConversationCaptureProps> = ({
   aiResponse,
   context
 }) => {
-  const { captureConversation } = useAutoN8NWebhook();
+  const { captureConversation, isEnabled, webhookUrl } = useAutoN8NWebhook();
 
   useEffect(() => {
     if (userMessage) {
+      console.log('📝 Capture message utilisateur:', userMessage);
+      console.log('🔗 Webhook activé:', isEnabled, 'URL:', webhookUrl);
       captureConversation('user', userMessage, context);
     }
-  }, [userMessage, context, captureConversation]);
+  }, [userMessage, context, captureConversation, isEnabled, webhookUrl]);
 
   useEffect(() => {
     if (aiResponse) {
+      console.log('🤖 Capture réponse IA:', aiResponse);
+      console.log('🔗 Webhook activé:', isEnabled, 'URL:', webhookUrl);
       captureConversation('ai', aiResponse, context);
     }
-  }, [aiResponse, context, captureConversation]);
+  }, [aiResponse, context, captureConversation, isEnabled, webhookUrl]);
 
-  // Ce composant ne rend rien, il capture juste les conversations
+  // Afficher un indicateur visuel si le webhook est activé
+  if (isEnabled && webhookUrl) {
+    return (
+      <div className="fixed bottom-4 right-4 bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+        🔄 Webhook N8N actif
+      </div>
+    );
+  }
+
   return null;
 };
 

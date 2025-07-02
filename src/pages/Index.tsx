@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import ChannelSetup from '@/components/ChannelSetup';
 import Dashboard from '@/components/Dashboard';
+import ConversationCapture from '@/components/ConversationCapture';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
@@ -29,7 +30,16 @@ const Index = () => {
   };
 
   if (isSetupComplete) {
-    return <Dashboard onNavigate={handleNavigate} onClientDetail={handleClientDetail} />;
+    return (
+      <>
+        <Dashboard onNavigate={handleNavigate} onClientDetail={handleClientDetail} />
+        <ConversationCapture 
+          userMessage="Utilisateur a navigué vers le dashboard"
+          aiResponse="Dashboard affiché avec succès"
+          context="dashboard-navigation"
+        />
+      </>
+    );
   }
 
   return (
@@ -48,6 +58,12 @@ const Index = () => {
         
         <ChannelSetup onComplete={handleSetupComplete} />
         <Toaster />
+        
+        <ConversationCapture 
+          userMessage="Utilisateur sur la page de configuration"
+          aiResponse="Page de configuration des canaux affichée"
+          context="channel-setup"
+        />
       </div>
     </div>
   );

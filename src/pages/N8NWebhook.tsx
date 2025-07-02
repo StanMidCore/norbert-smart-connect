@@ -1,6 +1,7 @@
 
 import N8NWebhookManager from '@/components/N8NWebhookManager';
 import AutoN8NWebhook from '@/components/AutoN8NWebhook';
+import ConversationCapture from '@/components/ConversationCapture';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const N8NWebhook = () => {
@@ -30,6 +31,12 @@ const N8NWebhook = () => {
             <N8NWebhookManager />
           </TabsContent>
         </Tabs>
+        
+        <ConversationCapture 
+          userMessage="Utilisateur a accédé à la page N8N Webhook"
+          aiResponse="Interface de configuration N8N affichée avec onglets automatique et manuel"
+          context="n8n-webhook-page"
+        />
       </div>
     </div>
   );
