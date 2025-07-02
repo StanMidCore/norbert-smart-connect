@@ -25,14 +25,16 @@ export const useChannelConnection = (onConnectionComplete: () => void) => {
     setQrCode(null);
     
     try {
-      console.log(`🔌 Tentative de connexion ${provider}...`);
+      console.log(`🔌 DEBUG: Tentative de connexion ${provider}...`);
+      console.log('🔌 DEBUG: User:', user);
+      console.log('🔌 DEBUG: Provider:', provider);
+      
       const result = await connectAccount(provider);
       
-      console.log(`📄 Réponse reçue pour ${provider}:`, result);
+      console.log(`📄 DEBUG: Réponse complète pour ${provider}:`, result);
       
       if (result.qr_code) {
-        // Pour WhatsApp, afficher le QR code
-        console.log('📱 QR Code WhatsApp reçu, longueur:', result.qr_code.length);
+        console.log('📱 DEBUG: QR Code WhatsApp reçu, longueur:', result.qr_code.length);
         setQrCode(result.qr_code);
         setConnecting(null);
         toast({
@@ -40,23 +42,20 @@ export const useChannelConnection = (onConnectionComplete: () => void) => {
           description: "Scannez le QR code avec WhatsApp pour connecter votre compte",
         });
       } else if (result.requires_sms) {
-        // Alternative WhatsApp par SMS
         setConnecting(null);
         toast({
           title: "Connexion WhatsApp",
           description: "Connexion par SMS disponible - cette fonctionnalité sera ajoutée prochainement",
         });
       } else if (result.authorization_url) {
-        // Pour OAuth, utiliser le gestionnaire de fenêtre
-        console.log('🔗 URL d\'autorisation reçue pour', provider);
+        console.log('🔗 DEBUG: URL d\'autorisation reçue pour', provider);
+        console.log('🔗 DEBUG: URL complète:', result.authorization_url);
         
-        // Ajouter un délai pour éviter le blocage immédiat
         setTimeout(() => {
           const handleComplete = async () => {
-            console.log(`✅ Connexion OAuth ${provider} réussie`);
+            console.log(`✅ DEBUG: Connexion OAuth ${provider} réussie`);
             setConnecting(null);
             
-            // Une seule actualisation après un délai
             setTimeout(() => {
               onConnectionComplete();
             }, 2000);
@@ -91,13 +90,16 @@ export const useChannelConnection = (onConnectionComplete: () => void) => {
           title: "Connexion réussie",
           description: `Votre compte ${provider} a été connecté`,
         });
-        // Actualisation unique après succès
         setTimeout(() => {
           onConnectionComplete();
         }, 1000);
       }
     } catch (error) {
-      console.error('❌ Erreur connexion:', error);
+      console.error('❌ DEBUG: Erreur connexion complète:', error);
+      console.error('❌ DEBUG: Type erreur:', typeof error);
+      console.error('❌ DEBUG: Message:', error.message);
+      console.error('❌ DEBUG: Stack:', error.stack);
+      
       setConnecting(null);
       
       let errorMessage = `Impossible de connecter ${provider}. `;
@@ -110,6 +112,16 @@ export const useChannelConnection = (onConnectionComplete: () => void) => {
         errorMessage += `Détails: ${error.message || 'Veuillez réessayer.'}`;
       }
       
+      // Ajout d'informations de debug pour l'utilisateur
+      console.log('🔍 DEBUG: Informations complètes de l\'erreur pour diagnostic:', {
+        provider,
+        user: user?.email,
+        errorType: typeof error,
+        errorMessage: error.message,
+        errorStack: error.stack,
+        timestamp: new Date().toISOString()
+      });
+      
       toast({
         title: "Erreur de connexion",
         description: errorMessage,
@@ -119,6 +131,7 @@ export const useChannelConnection = (onConnectionComplete: () => void) => {
   }, [connectAccount, toast, openAuthWindow, onConnectionComplete]);
 
   const handleQRError = useCallback((message: string) => {
+    console.error('❌ DEBUG: Erreur QR Code:', message);
     toast({
       title: "Erreur QR Code",
       description: message,
