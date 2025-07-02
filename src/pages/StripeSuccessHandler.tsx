@@ -82,7 +82,7 @@ const StripeSuccessHandler = () => {
           <>
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
             <h1 className="text-2xl font-bold mb-4">Traitement du paiement...</h1>
-            <p className="text-gray-600 mb-4">Création de votre compte, nettoyage des canaux et configuration N8N en cours...</p>
+            <p className="text-gray-600 mb-4">Création de votre compte en cours...</p>
           </>
         )}
         
@@ -91,7 +91,7 @@ const StripeSuccessHandler = () => {
             <div className="text-green-600 text-6xl mb-4">✓</div>
             <h1 className="text-2xl font-bold mb-4">Paiement réussi !</h1>
             <p className="text-gray-600 mb-4">Votre compte a été créé et configuré avec succès.</p>
-            <p className="text-sm text-gray-500 mb-4">Redirection vers la configuron des canaux...</p>
+            <p className="text-sm text-gray-500 mb-4">Redirection vers la configuration des canaux...</p>
           </>
         )}
         
@@ -104,13 +104,6 @@ const StripeSuccessHandler = () => {
           </>
         )}
 
-        {/* Debug info */}
-        <details className="mt-6 text-left bg-gray-100 p-4 rounded">
-          <summary className="cursor-pointer font-semibold">Debug Info</summary>
-          <pre className="mt-2 text-xs overflow-auto">
-            {JSON.stringify(debugInfo, null, 2)}
-          </pre>
-        </details>
       </div>
     </div>
   );

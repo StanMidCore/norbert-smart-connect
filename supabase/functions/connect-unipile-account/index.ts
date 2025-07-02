@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, providerMapping } from './constants.ts';
 import { getDemoUser } from './database.ts';
 import { handleWhatsAppConnection } from './whatsapp.ts';
+import { handleInstagramConnection } from './instagram.ts';
 import { handleOAuthConnection } from './oauth.ts';
 import type { ConnectionResponse } from './types.ts';
 
@@ -94,11 +95,8 @@ serve(async (req) => {
     }
     // Handle Instagram
     else if (provider.toLowerCase() === 'instagram') {
-      result = {
-        success: false,
-        error: 'Instagram nécessite une configuration manuelle via le dashboard Unipile.',
-        requires_manual_setup: true
-      };
+      console.log('📱 [Instagram] Appel du handler Instagram...');
+      result = await handleInstagramConnection(unipileApiKey, supabase, user.id);
     }
     // Handle unsupported providers
     else {
