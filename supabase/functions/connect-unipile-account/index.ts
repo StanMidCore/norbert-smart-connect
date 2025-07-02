@@ -63,8 +63,13 @@ serve(async (req) => {
       console.log('📊 Test API - Status:', testResponse.status);
       
       if (!testResponse.ok) {
-        console.error('❌ Erreur test API Unipile:', testResponse.status, testResponse.statusText);
         const errorData = await testResponse.json().catch(() => ({}));
+        console.error('❌ Erreur test API Unipile:', {
+          status: testResponse.status,
+          statusText: testResponse.statusText,
+          error: errorData
+        });
+        
         return new Response(JSON.stringify({ 
           error: `Clé API Unipile invalide (${testResponse.status}): ${errorData.title || testResponse.statusText}`,
           success: false 
@@ -120,13 +125,16 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('❌ Erreur CRITIQUE connexion compte Unipile:', error);
-    console.error('📊 Type erreur:', typeof error);
-    console.error('📊 Message:', error.message);
-    console.error('📊 Stack:', error.stack);
+    console.error('❌ Erreur CRITIQUE connexion compte Unipile:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      type: typeof error
+    });
     
     return new Response(JSON.stringify({ 
       error: `Erreur technique: ${error.message || 'Erreur inconnue'}`,
+      details: error.name || 'Type inconnu',
       success: false 
     }), {
       status: 500,

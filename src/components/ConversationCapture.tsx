@@ -15,38 +15,51 @@ const ConversationCapture: React.FC<ConversationCaptureProps> = ({
 }) => {
   const { captureConversation, isEnabled, webhookUrl } = useAutoN8NWebhook();
   const processedMessages = useRef(new Set<string>());
+  const lastProcessedRef = useRef({ userMessage: '', aiResponse: '', context: '' });
 
   useEffect(() => {
-    if (userMessage && isEnabled && webhookUrl) {
-      const messageKey = `user-${userMessage}-${context}-${Date.now()}`;
+    // Éviter la boucle infinie en vérifiant si le message a changé
+    if (userMessage && 
+        userMessage !== lastProcessedRef.current.userMessage && 
+        isEnabled && 
+        webhookUrl) {
+      
+      const messageKey = `user-${userMessage}-${context || 'default'}`;
       
       if (!processedMessages.current.has(messageKey)) {
         processedMessages.current.add(messageKey);
+        lastProcessedRef.current.userMessage = userMessage;
         console.log('📝 Capture message utilisateur:', userMessage);
-        console.log('🔗 Webhook activé:', isEnabled, 'URL:', webhookUrl);
         captureConversation('user', userMessage, context);
       }
     }
   }, [userMessage, context, captureConversation, isEnabled, webhookUrl]);
 
   useEffect(() => {
-    if (aiResponse && isEnabled && webhookUrl) {
-      const messageKey = `ai-${aiResponse}-${context}-${Date.now()}`;
+    // Éviter la boucle infinie en vérifiant si le message a changé
+    if (aiResponse && 
+        aiResponse !== lastProcessedRef.current.aiResponse && 
+        isEnabled && 
+        webhookUrl) {
+      
+      const messageKey = `ai-${aiResponse}-${context || 'default'}`;
       
       if (!processedMessages.current.has(messageKey)) {
         processedMessages.current.add(messageKey);
+        lastProcessedRef.current.aiResponse = aiResponse;
         console.log('🤖 Capture réponse IA:', aiResponse);
-        console.log('🔗 Webhook activé:', isEnabled, 'URL:', webhookUrl);
         captureConversation('ai', aiResponse, context);
       }
     }
   }, [aiResponse, context, captureConversation, isEnabled, webhookUrl]);
 
-  // Nettoyer le cache périodiquement pour éviter l'accumulation
+  // Nettoyer le cache périodiquement
   useEffect(() => {
     const interval = setInterval(() => {
       processedMessages.current.clear();
-    }, 60000); // Nettoyer toutes les minutes
+      lastProcessedRef.current = { userMessage: '', aiResponse: '', context: '' };
+      console.log('🧹 Cache de messages nettoyé');
+    }, 300000); // Nettoyer toutes les 5 minutes
 
     return () => clearInterval(interval);
   }, []);

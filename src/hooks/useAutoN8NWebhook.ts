@@ -40,8 +40,6 @@ export const useAutoN8NWebhook = () => {
 
   // Capturer une conversation
   const captureConversation = (role: 'user' | 'ai', content: string, context?: string) => {
-    console.log('📨 Tentative capture conversation:', { role, content, context, isEnabled, webhookUrl });
-    
     if (!isEnabled || !webhookUrl) {
       console.log('⚠️ Capture ignorée - webhook non configuré');
       return;
@@ -92,11 +90,20 @@ export const useAutoN8NWebhook = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur détaillée webhook N8N:', error);
+        throw error;
+      }
       
       console.log('✅ Conversation envoyée vers N8N avec succès:', data);
     } catch (error) {
-      console.error('❌ Erreur envoi conversation auto vers N8N:', error);
+      console.error('❌ Erreur complète envoi conversation auto vers N8N:', {
+        error: error,
+        message: error.message,
+        details: error.details || 'Aucun détail',
+        webhookUrl: webhookUrl,
+        conversationSlice: conversationSlice
+      });
     }
   };
 
@@ -107,7 +114,7 @@ export const useAutoN8NWebhook = () => {
       return;
     }
 
-    console.log('📊 Envoi logs vers N8N...');
+    console.log(`📊 Envoi logs vers N8N (${hours}h)...`);
 
     try {
       const { data, error } = await supabase.functions.invoke('export-logs-to-n8n', {
@@ -118,11 +125,19 @@ export const useAutoN8NWebhook = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur détaillée logs N8N:', error);
+        throw error;
+      }
       
       console.log('✅ Logs envoyés vers N8N avec succès:', data);
     } catch (error) {
-      console.error('❌ Erreur envoi logs auto vers N8N:', error);
+      console.error('❌ Erreur complète envoi logs auto vers N8N:', {
+        error: error,
+        message: error.message,
+        details: error.details || 'Aucun détail',
+        webhookUrl: webhookUrl
+      });
     }
   };
 
