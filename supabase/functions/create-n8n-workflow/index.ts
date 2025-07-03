@@ -1,13 +1,19 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+// Diagnostic N8N au startup
+console.log('🚀 === DIAGNOSTIC N8N STARTUP ===');
+const N8N_BASE_URL = Deno.env.get('N8N_BASE_URL');
+const N8N_API_KEY = Deno.env.get('N8N_API_KEY');
+console.log('N8N_BASE_URL:', N8N_BASE_URL || 'MANQUANT');
+console.log('N8N_API_KEY:', N8N_API_KEY ? 'PRÉSENT' : 'MANQUANT');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const N8N_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2N2E5NWQ2NS1kZTI5LTRlN2EtYjQxZC0yYjhjZTdiYTQwYzgiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzUxMDExNzgxfQ.k4c-dAmKJpK5aUk2idyW1HFNmayS3xba4PrbUGa88CY';
-const N8N_BASE_URL = 'https://n8n.srv784558.hstgr.cloud';
+const N8N_API_KEY_CONST = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2N2E5NWQ2NS1kZTI5LTRlN2EtYjQxZC0yYjhjZTdiYTQwYzgiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzUxMDExNzgxfQ.k4c-dAmKJpK5aUk2idyW1HFNmayS3xba4PrbUGa88CY';
+const N8N_BASE_URL_CONST = 'https://n8n.srv784558.hstgr.cloud';
 const NORBERT_FOLDER_ID = 'uO7pivHjhurjrT2k';
 
 serve(async (req) => {
@@ -24,8 +30,8 @@ serve(async (req) => {
   // Test de connectivité N8N
   try {
     console.log('🏥 Test de connectivité N8N...');
-    const testResponse = await fetch(`${N8N_BASE_URL}/rest/health`, {
-      headers: { 'Authorization': `Bearer ${N8N_API_KEY}` }
+    const testResponse = await fetch(`${N8N_BASE_URL_CONST}/rest/health`, {
+      headers: { 'Authorization': `Bearer ${N8N_API_KEY_CONST}` }
     });
     console.log('🏥 Test santé N8N:', testResponse.status, testResponse.statusText);
   } catch (testError) {
@@ -61,7 +67,7 @@ serve(async (req) => {
     console.log(`🔗 Webhook personnalisé généré: ${webhookPath}`);
 
     // Construire l'URL complète du webhook
-    const webhookUrl = `${N8N_BASE_URL}/webhook/${webhookPath}`;
+    const webhookUrl = `${N8N_BASE_URL_CONST}/webhook/${webhookPath}`;
     console.log(`🌐 URL webhook complète: ${webhookUrl}`);
 
     // Workflow N8N personnalisé avec le nom = email du client
@@ -326,13 +332,13 @@ Tu es l'assistant IA personnel de ${userEmail}. Tu réponds automatiquement aux 
 
     // Créer le workflow avec l'API REST N8N
     console.log('📝 Envoi requête POST vers N8N...');
-    console.log(`🔗 URL: ${N8N_BASE_URL}/rest/workflows`);
-    console.log(`🔑 Authorization: Bearer ${N8N_API_KEY.substring(0, 20)}...`);
+    console.log(`🔗 URL: ${N8N_BASE_URL_CONST}/rest/workflows`);
+    console.log(`🔑 Authorization: Bearer ${N8N_API_KEY_CONST.substring(0, 20)}...`);
     
-    const createResponse = await fetch(`${N8N_BASE_URL}/rest/workflows`, {
+    const createResponse = await fetch(`${N8N_BASE_URL_CONST}/rest/workflows`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${N8N_API_KEY}`,
+        'Authorization': `Bearer ${N8N_API_KEY_CONST}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(workflowData)
@@ -355,10 +361,10 @@ Tu es l'assistant IA personnel de ${userEmail}. Tu réponds automatiquement aux 
 
     // Activer le workflow
     console.log('🔄 Activation du workflow...');
-    const activateResponse = await fetch(`${N8N_BASE_URL}/rest/workflows/${workflow.id}/activate`, {
+    const activateResponse = await fetch(`${N8N_BASE_URL_CONST}/rest/workflows/${workflow.id}/activate`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${N8N_API_KEY}`,
+        'Authorization': `Bearer ${N8N_API_KEY_CONST}`,
         'Content-Type': 'application/json'
       }
     });

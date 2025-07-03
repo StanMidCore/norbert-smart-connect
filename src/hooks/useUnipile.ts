@@ -115,6 +115,8 @@ export const useUnipile = () => {
   };
 
   const connectAccount = async (provider: string) => {
+    console.log('🔄 Début connectAccount pour provider:', provider);
+    
     try {
       const { data, error } = await supabase.functions.invoke('connect-unipile-account', {
         body: { provider }

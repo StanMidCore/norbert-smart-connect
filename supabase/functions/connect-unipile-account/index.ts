@@ -16,6 +16,9 @@ serve(async (req) => {
   try {
     const { provider } = await req.json();
     
+    console.log('🔍 === TENTATIVE CONNEXION ===');
+    console.log('Provider demandé:', provider);
+    
     if (!provider) {
       return new Response(JSON.stringify({ 
         error: 'Provider requis' 
@@ -27,6 +30,9 @@ serve(async (req) => {
 
     // Get demo user and database connection
     const { user, supabase } = await getDemoUser();
+    
+    console.log('User ID:', user.id);
+    console.log('User email:', user.email);
 
     // Get Unipile API key with better error handling
     const unipileApiKey = Deno.env.get('UNIPILE_API_KEY');
