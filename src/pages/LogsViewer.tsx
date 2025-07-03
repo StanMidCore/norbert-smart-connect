@@ -106,15 +106,15 @@ const LogsViewer = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="logs" className="w-full">
+      <Tabs defaultValue="visualization" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="logs">Logs Historiques</TabsTrigger>
+          <TabsTrigger value="visualization">Visualisation</TabsTrigger>
           <TabsTrigger value="realtime">Temps Réel</TabsTrigger>
           <TabsTrigger value="export">Export pour Claude</TabsTrigger>
           <TabsTrigger value="analysis">Analyse</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="logs" className="space-y-6">
+        <TabsContent value="visualization" className="space-y-6">
           {/* Filtres */}
           <div className="flex gap-4 mb-6">
             <div className="flex-1">
