@@ -14,6 +14,12 @@ serve(async (req) => {
   console.log('🎯 === DÉBUT FONCTION create-n8n-workflow ===');
   console.log(`📨 Méthode: ${req.method}`);
   console.log(`🔗 URL: ${req.url}`);
+
+  // Logging des variables d'environnement
+  console.log('🔑 Variables d\'environnement:');
+  console.log('N8N_BASE_URL:', N8N_BASE_URL ? 'PRÉSENT' : 'MANQUANT');
+  console.log('N8N_API_KEY:', N8N_API_KEY ? 'PRÉSENT' : 'MANQUANT');
+  console.log('NORBERT_FOLDER_ID:', NORBERT_FOLDER_ID ? 'PRÉSENT' : 'MANQUANT');
   
   if (req.method === 'OPTIONS') {
     console.log('⚡ Réponse OPTIONS CORS');

@@ -23,18 +23,33 @@ export async function createN8NWorkflow(userEmail: string, businessName: string,
       body: {
         userEmail: userEmail,
         userName: businessName || userEmail.split('@')[0]
+      },
+      headers: {
+        'Authorization': `Bearer ${supabaseKey}`
       }
     });
 
     if (workflowError) {
       console.error('❌ Erreur création workflow N8N:', workflowError);
+      console.error('❌ Type d\'erreur:', typeof workflowError);
+      console.error('❌ Propriétés de l\'erreur:', Object.keys(workflowError));
+      console.error('❌ Message détaillé:', workflowError.message || 'Pas de message');
+      console.error('❌ Context détaillé:', workflowError.context || 'Pas de context');
+      
       await logEvent({
         function_name: 'stripe-success',
         event: 'n8n_workflow_creation_error',
         user_id: userId,
         user_email: userEmail,
         level: 'error',
-        details: { error: workflowError }
+        details: { 
+          error: workflowError,
+          error_type: typeof workflowError,
+          error_keys: Object.keys(workflowError),
+          error_message: workflowError.message,
+          error_context: workflowError.context,
+          error_string: String(workflowError)
+        }
       });
       return null;
     } else {
