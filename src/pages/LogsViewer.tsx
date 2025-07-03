@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,13 +5,15 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Filter, Search, Bug, Download } from 'lucide-react';
+import { RefreshCw, Filter, Search, Bug, Download, Copy } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { Tables } from '@/integrations/supabase/types';
 import RealTimeLogConsole from '@/components/RealTimeLogConsole';
 import DebugExportPanel from '@/components/DebugExportPanel';
+import { toast } from 'sonner';
 
 type LogEntry = Tables<'edge_function_logs'>;
 
@@ -22,6 +23,8 @@ const LogsViewer = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFunction, setSelectedFunction] = useState<string>('all');
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
+  const [exportReport, setExportReport] = useState('');
+  const [exportPeriod, setExportPeriod] = useState('24h');
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -88,6 +91,123 @@ const LogsViewer = () => {
       }
     } catch (error) {
       console.error('Erreur suppression logs:', error);
+    }
+  };
+
+  const anonymizeEmail = (email: string | null): string => {
+    if (!email) return 'anonymous';
+    const domain = email.split('@')[1] || 'unknown.com';
+    const hash = email.split('@')[0].slice(0, 3);
+    return `user_${hash}***@${domain}`;
+  };
+
+  const anonymizeData = (obj: any): any => {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    const sensitiveKeys = ['password', 'token', 'key', 'secret', 'api_key', 'access_token', 'refresh_token'];
+    const result: any = Array.isArray(obj) ? [] : {};
+    
+    for (const [key, value] of Object.entries(obj)) {
+      const lowerKey = key.toLowerCase();
+      const isSensitive = sensitiveKeys.some(sensitive => lowerKey.includes(sensitive));
+      
+      if (isSensitive && typeof value === 'string') {
+        result[key] = `[MASKED_${value.length}_CHARS]`;
+      } else if (typeof value === 'object' && value !== null) {
+        result[key] = anonymizeData(value);
+      } else {
+        result[key] = value;
+      }
+    }
+    
+    return result;
+  };
+
+  const generateReport = async () => {
+    try {
+      const hours = exportPeriod === '24h' ? 24 : exportPeriod === '7d' ? 168 : 8760;
+      const startTime = new Date();
+      startTime.setHours(startTime.getHours() - hours);
+      
+      const { data: reportLogs, error } = await supabase
+        .from('edge_function_logs')
+        .select('*')
+        .gte('created_at', startTime.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      if (error) throw error;
+
+      const anonymizedLogs = reportLogs?.map(log => ({
+        id: log.id,
+        function_name: log.function_name,
+        event: log.event,
+        level: log.level,
+        created_at: log.created_at,
+        user_email: anonymizeEmail(log.user_email),
+        details: anonymizeData(log.details)
+      })) || [];
+
+      const errorLogs = anonymizedLogs.filter(l => l.level === 'error');
+      const warnLogs = anonymizedLogs.filter(l => l.level === 'warn');
+      const functionsActivity = anonymizedLogs.reduce((acc, log) => {
+        acc[log.function_name] = (acc[log.function_name] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const report = `# Rapport de Debug - Norbert AI
+
+## Contexte de l'Application
+- **Nom**: Norbert AI Assistant
+- **Stack**: React/TypeScript + Supabase
+- **Période analysée**: ${exportPeriod === '24h' ? 'Dernières 24h' : exportPeriod === '7d' ? 'Derniers 7 jours' : 'Dernier mois'}
+- **Timestamp**: ${new Date().toISOString()}
+
+## Résumé des Erreurs
+- **Erreurs**: ${errorLogs.length}
+- **Warnings**: ${warnLogs.length}
+- **Total logs**: ${anonymizedLogs.length}
+
+## Activité par Fonction
+${Object.entries(functionsActivity)
+  .sort(([,a], [,b]) => b - a)
+  .map(([fn, count]) => `- ${fn}: ${count} logs`)
+  .join('\n')}
+
+## Dernières Erreurs (Top 10)
+${errorLogs.slice(0, 10).map(error => `
+### ${error.function_name} - ${error.event}
+- **Timestamp**: ${error.created_at}
+- **User**: ${error.user_email}
+- **Details**: ${JSON.stringify(error.details, null, 2)}
+`).join('\n')}
+
+## Logs Détaillés (50 derniers)
+${anonymizedLogs.slice(0, 50).map(log => `
+[${log.created_at}] ${log.level?.toUpperCase()} - ${log.function_name}: ${log.event}
+User: ${log.user_email}
+Details: ${JSON.stringify(log.details, null, 2)}
+`).join('\n---\n')}
+
+---
+*Rapport généré automatiquement par Norbert Debug System*
+`;
+
+      setExportReport(report);
+      toast.success('Rapport généré avec succès');
+    } catch (error) {
+      console.error('Erreur génération rapport:', error);
+      toast.error('Erreur lors de la génération du rapport');
+    }
+  };
+
+  const copyReport = async () => {
+    try {
+      await navigator.clipboard.writeText(exportReport);
+      toast.success('Rapport copié dans le presse-papier');
+    } catch (error) {
+      console.error('Erreur copie:', error);
+      toast.error('Erreur lors de la copie');
     }
   };
 
@@ -218,8 +338,55 @@ const LogsViewer = () => {
           <RealTimeLogConsole />
         </TabsContent>
 
-        <TabsContent value="export">
-          <DebugExportPanel />
+        <TabsContent value="export" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Download className="h-5 w-5" />
+                Export pour Claude
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-4 items-center">
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-2 block">Période</label>
+                  <Select value={exportPeriod} onValueChange={setExportPeriod}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="24h">Dernières 24h</SelectItem>
+                      <SelectItem value="7d">Derniers 7 jours</SelectItem>
+                      <SelectItem value="30d">Dernier mois</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={generateReport} variant="default">
+                    Générer Rapport
+                  </Button>
+                  <Button onClick={copyReport} variant="outline" disabled={!exportReport}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copier
+                  </Button>
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-2 block">Rapport pour Claude</label>
+                <Textarea
+                  value={exportReport}
+                  onChange={(e) => setExportReport(e.target.value)}
+                  placeholder="Cliquez sur 'Générer Rapport' pour créer un rapport formaté..."
+                  className="min-h-[400px] font-mono text-sm"
+                />
+              </div>
+              
+              <div className="text-sm text-muted-foreground">
+                💡 Ce rapport contient les logs anonymisés et le contexte nécessaire pour que Claude puisse vous aider efficacement.
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="analysis">
