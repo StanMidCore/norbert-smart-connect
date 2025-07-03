@@ -50,7 +50,7 @@ export const useChannelConnection = (onConnectionComplete: () => void) => {
           description: "Veuillez saisir votre numéro WhatsApp Business",
         });
       } else if (result.requires_sms) {
-        // WhatsApp par SMS
+        // WhatsApp par SMS - nouvelle gestion améliorée
         console.log('💬 WhatsApp par SMS pour:', result.phone_number);
         setWhatsappState({
           requires_sms: true,
@@ -59,8 +59,9 @@ export const useChannelConnection = (onConnectionComplete: () => void) => {
         });
         setConnecting(null);
         toast({
-          title: "Code SMS",
-          description: `Code envoyé au ${result.phone_number}`,
+          title: "Connexion WhatsApp Business requise",
+          description: "Votre numéro WhatsApp Business sera configuré. Contactez le support pour finaliser.",
+          duration: 8000,
         });
       } else if (result.qr_code) {
         // Pour WhatsApp, afficher le QR code en fallback

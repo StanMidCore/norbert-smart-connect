@@ -15,6 +15,23 @@ serve(async (req) => {
   console.log(`📨 Méthode: ${req.method}`);
   console.log(`🔗 URL: ${req.url}`);
 
+  // Diagnostic détaillé au début
+  console.log('🔑 === DIAGNOSTIC CREATE-N8N-WORKFLOW ===');
+  console.log('N8N_BASE_URL:', Deno.env.get('N8N_BASE_URL') ? 'PRÉSENT' : 'MANQUANT');
+  console.log('N8N_API_KEY:', Deno.env.get('N8N_API_KEY') ? 'PRÉSENT' : 'MANQUANT'); 
+  console.log('NORBERT_FOLDER_ID:', Deno.env.get('NORBERT_FOLDER_ID') ? 'PRÉSENT' : 'MANQUANT');
+
+  // Test de connectivité N8N
+  try {
+    console.log('🏥 Test de connectivité N8N...');
+    const testResponse = await fetch(`${N8N_BASE_URL}/rest/health`, {
+      headers: { 'Authorization': `Bearer ${N8N_API_KEY}` }
+    });
+    console.log('🏥 Test santé N8N:', testResponse.status, testResponse.statusText);
+  } catch (testError) {
+    console.error('❌ Erreur connectivité N8N:', testError.message);
+  }
+
   // Logging des variables d'environnement
   console.log('🔑 Variables d\'environnement:');
   console.log('N8N_BASE_URL:', N8N_BASE_URL ? 'PRÉSENT' : 'MANQUANT');
