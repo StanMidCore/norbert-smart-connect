@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -77,6 +78,9 @@ export const useUnipile = () => {
         } else if (account.type === 'WHATSAPP') {
           channelType = 'whatsapp';
           providerName = 'WhatsApp';
+        } else if (account.type === 'INSTAGRAM') {
+          channelType = 'instagram';
+          providerName = 'Instagram';
         }
 
         return {
@@ -112,11 +116,6 @@ export const useUnipile = () => {
 
   const connectAccount = async (provider: string) => {
     try {
-      // Pour Instagram, afficher un message d'information
-      if (provider.toLowerCase() === 'instagram') {
-        throw new Error('Instagram n\'est pas disponible pour l\'instant. Cette fonctionnalité sera ajoutée prochainement.');
-      }
-
       const { data, error } = await supabase.functions.invoke('connect-unipile-account', {
         body: { provider }
       });

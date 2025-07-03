@@ -17,6 +17,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     error,
     connecting,
     qrCode,
+    whatsappState,
     hasInitialized,
     fetchingRef,
     handleConnectProvider,
@@ -24,7 +25,9 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
     handleQRError,
     handleCleanupChannels,
     setQrCode,
-    fetchAccountsOnce
+    fetchAccountsOnce,
+    handleWhatsAppSuccess,
+    handleWhatsAppCancel
   } = useChannelSetup();
 
   const handleOAuthSuccess = (provider: string) => {
@@ -53,6 +56,7 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
         error={error}
         connecting={connecting}
         qrCode={qrCode}
+        whatsappState={whatsappState}
         isRefreshing={fetchingRef.current}
         onConnect={handleConnectProvider}
         onRefresh={handleRefreshAccounts}
@@ -61,6 +65,8 @@ const ChannelSetup = ({ onComplete }: ChannelSetupProps) => {
         onQRClose={() => setQrCode(null)}
         onQRRegenerate={() => handleConnectProvider('whatsapp')}
         onQRError={handleQRError}
+        onWhatsAppSuccess={handleWhatsAppSuccess}
+        onWhatsAppCancel={handleWhatsAppCancel}
       />
     </>
   );

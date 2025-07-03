@@ -46,17 +46,28 @@ export async function handleWhatsAppConnection(
     console.warn('⚠️ [WhatsApp] Aucun account ID trouvé dans la réponse');
   }
 
-  // Vérifier si on a un QR code ou une autre méthode
+  // Vérifier les méthodes de connexion disponibles
   const qrCode = result.checkpoint?.qrcode || result.qr_code;
   const phoneNumber = result.checkpoint?.phone_number;
   const smsCode = result.checkpoint?.sms_code;
   
   console.log('🔍 [WhatsApp] Méthodes de connexion disponibles:');
-  console.log('📱 [WhatsApp] QR Code:', qrCode ? 'DISPONIBLE' : 'NON DISPONIBLE');
   console.log('📞 [WhatsApp] Phone Number:', phoneNumber ? phoneNumber : 'NON DISPONIBLE');
   console.log('💬 [WhatsApp] SMS Code:', smsCode ? 'DISPONIBLE' : 'NON DISPONIBLE');
+  console.log('📱 [WhatsApp] QR Code:', qrCode ? 'DISPONIBLE' : 'NON DISPONIBLE');
 
-  if (qrCode) {
+  // Prioriser SMS sur QR code pour mobile
+  if (phoneNumber) {
+    console.log('✅ [WhatsApp] Connexion par SMS pour:', phoneNumber);
+    return {
+      success: true,
+      phone_number: phoneNumber,
+      requires_sms: true,
+      account_id: accountId,
+      message: 'Saisissez le code SMS reçu'
+    };
+  } else if (qrCode) {
+    // QR code en fallback seulement pour desktop
     console.log('✅ [WhatsApp] Retour avec QR Code (longueur:', qrCode.length, ')');
     return {
       success: true, 
@@ -64,20 +75,14 @@ export async function handleWhatsAppConnection(
       account_id: accountId,
       message: 'Scannez le QR code avec WhatsApp'
     };
-  } else if (phoneNumber) {
-    console.log('✅ [WhatsApp] Retour avec connexion SMS pour:', phoneNumber);
+  } else {
+    // Demander le numéro à l'utilisateur
+    console.log('📞 [WhatsApp] Demande de numéro utilisateur');
     return {
       success: true,
-      phone_number: phoneNumber,
-      requires_sms: true,
+      requires_phone_input: true,
       account_id: accountId,
-      message: 'Connexion par numéro de téléphone disponible'
-    };
-  } else {
-    console.error('❌ [WhatsApp] Aucune méthode de connexion trouvée');
-    return {
-      success: false,
-      error: 'Aucune méthode de connexion disponible'
+      message: 'Veuillez saisir votre numéro WhatsApp Business'
     };
   }
 }

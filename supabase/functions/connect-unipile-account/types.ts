@@ -21,6 +21,7 @@ export interface ConnectionResponse {
   qr_code?: string;
   phone_number?: string;
   requires_sms?: boolean;
+  requires_phone_input?: boolean;
   account_id?: string;
   authorization_url?: string;
   message?: string;

@@ -26,8 +26,11 @@ export const useChannelSetup = () => {
     connecting,
     qrCode,
     setQrCode,
+    whatsappState,
     handleConnectProvider: baseHandleConnectProvider,
-    handleQRError
+    handleQRError,
+    handleWhatsAppSuccess,
+    handleWhatsAppCancel
   } = useChannelConnection(handleConnectionComplete);
 
   const handleConnectProvider = useCallback((provider: string) => {
@@ -42,6 +45,7 @@ export const useChannelSetup = () => {
     error,
     connecting,
     qrCode,
+    whatsappState,
     hasInitialized,
     fetchingRef,
     handleConnectProvider,
@@ -49,6 +53,8 @@ export const useChannelSetup = () => {
     handleQRError,
     handleCleanupChannels,
     setQrCode,
-    fetchAccountsOnce
+    fetchAccountsOnce,
+    handleWhatsAppSuccess,
+    handleWhatsAppCancel
   };
 };

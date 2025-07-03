@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 import ChannelSetupHeader from './ChannelSetupHeader';
 import ErrorDisplay from './ErrorDisplay';
 import QRCodeDialog from './QRCodeDialog';
+import WhatsAppPhoneInput from './WhatsAppPhoneInput';
 import AvailableProvidersList from './AvailableProvidersList';
 import ChannelSetupActions from './ChannelSetupActions';
 import type { UnipileChannel } from '@/hooks/useUnipile';
@@ -16,6 +17,12 @@ interface ChannelSetupLayoutProps {
   error: string | null;
   connecting: string | null;
   qrCode: string | null;
+  whatsappState?: {
+    requires_phone_input?: boolean;
+    requires_sms?: boolean;
+    phone_number?: string;
+    account_id?: string;
+  } | null;
   isRefreshing: boolean;
   onConnect: (provider: string) => void;
   onRefresh: () => void;
@@ -24,6 +31,8 @@ interface ChannelSetupLayoutProps {
   onQRClose: () => void;
   onQRRegenerate: () => void;
   onQRError: (message: string) => void;
+  onWhatsAppSuccess?: () => void;
+  onWhatsAppCancel?: () => void;
 }
 
 const ChannelSetupLayout = ({
@@ -34,6 +43,7 @@ const ChannelSetupLayout = ({
   error,
   connecting,
   qrCode,
+  whatsappState,
   isRefreshing,
   onConnect,
   onRefresh,
@@ -41,7 +51,9 @@ const ChannelSetupLayout = ({
   onComplete,
   onQRClose,
   onQRRegenerate,
-  onQRError
+  onQRError,
+  onWhatsAppSuccess,
+  onWhatsAppCancel
 }: ChannelSetupLayoutProps) => {
   if (loading || !user) {
     return (
@@ -65,6 +77,16 @@ const ChannelSetupLayout = ({
             onRetry={onRefresh}
             isRetrying={isRefreshing}
           />
+        )}
+
+        {whatsappState?.requires_phone_input && whatsappState.account_id && (
+          <div className="mb-6">
+            <WhatsAppPhoneInput
+              accountId={whatsappState.account_id}
+              onSuccess={onWhatsAppSuccess || (() => {})}
+              onCancel={onWhatsAppCancel || (() => {})}
+            />
+          </div>
         )}
 
         <QRCodeDialog

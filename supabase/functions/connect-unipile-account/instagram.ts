@@ -1,3 +1,4 @@
+
 import type { ConnectionResponse } from './types.ts';
 
 export async function handleInstagramConnection(
@@ -24,24 +25,40 @@ export async function handleInstagramConnection(
     const result = await response.json();
     console.log('📊 [Instagram] Réponse Unipile complète:', JSON.stringify(result, null, 2));
     console.log('📊 [Instagram] Status code:', response.status);
+    console.log('📊 [Instagram] Headers de réponse:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       console.error('❌ [Instagram] Erreur API Unipile:', result);
-      console.error('❌ [Instagram] Headers de réponse:', Object.fromEntries(response.headers.entries()));
+      console.error('❌ [Instagram] Status détaillé:', response.status, response.statusText);
+      console.error('❌ [Instagram] Body de la réponse:', result);
+      
+      // Logging détaillé des erreurs
+      if (result.detail) {
+        console.error('❌ [Instagram] Détail de l\'erreur:', result.detail);
+      }
+      if (result.message) {
+        console.error('❌ [Instagram] Message d\'erreur:', result.message);
+      }
+      if (result.code) {
+        console.error('❌ [Instagram] Code d\'erreur:', result.code);
+      }
       
       // Instagram nécessite souvent une configuration manuelle
-      if (result.detail?.includes('configuration') || result.message?.includes('manual')) {
-        console.log('⚠️ [Instagram] Configuration manuelle requise');
+      if (result.detail?.includes('configuration') || 
+          result.message?.includes('manual') || 
+          result.detail?.includes('not supported') ||
+          response.status === 400) {
+        console.log('⚠️ [Instagram] Configuration manuelle ou non supporté détectée');
         return {
           success: false,
-          error: 'Instagram nécessite une configuration manuelle via le dashboard Unipile. Contactez le support pour activer Instagram.',
+          error: `Instagram: ${result.message || result.detail || 'Configuration manuelle requise'}. Statut: ${response.status}`,
           requires_manual_setup: true
         };
       }
       
       return {
         success: false,
-        error: `Erreur API Unipile: ${result.message || result.detail || 'Erreur inconnue'}`
+        error: `Erreur API Instagram (${response.status}): ${result.message || result.detail || 'Erreur inconnue'}`
       };
     }
 
@@ -76,30 +93,42 @@ export async function handleInstagramConnection(
     }
 
     // Instagram utilise généralement OAuth
-    const authUrl = result.authorization_url || result.auth_url;
+    const authUrl = result.authorization_url || result.auth_url || result.redirect_url;
+    const loginUrl = result.login_url;
     
-    console.log('🔍 [Instagram] Vérification méthode de connexion:');
+    console.log('🔍 [Instagram] Vérification méthodes de connexion:');
     console.log('🔗 [Instagram] Auth URL:', authUrl ? 'DISPONIBLE' : 'NON DISPONIBLE');
+    console.log('🔗 [Instagram] Login URL:', loginUrl ? 'DISPONIBLE' : 'NON DISPONIBLE');
     
     if (authUrl) {
-      console.log('✅ [Instagram] Retour avec URL d\'autorisation');
+      console.log('✅ [Instagram] Retour avec URL d\'autorisation:', authUrl);
       return {
         success: true,
         authorization_url: authUrl,
         account_id: accountId,
         message: 'Autorisez l\'accès à Instagram dans la nouvelle fenêtre'
       };
+    } else if (loginUrl) {
+      console.log('✅ [Instagram] Retour avec URL de login:', loginUrl);
+      return {
+        success: true,
+        authorization_url: loginUrl,
+        account_id: accountId,
+        message: 'Connectez-vous à Instagram dans la nouvelle fenêtre'
+      };
     } else {
       console.error('❌ [Instagram] Aucune méthode de connexion trouvée');
+      console.log('🔍 [Instagram] Clés disponibles dans result:', Object.keys(result));
       return {
         success: false,
-        error: 'Instagram nécessite une configuration manuelle. Contactez le support.',
+        error: 'Instagram: Aucune URL d\'autorisation disponible. Contactez le support.',
         requires_manual_setup: true
       };
     }
 
   } catch (error) {
-    console.error('❌ [Instagram] Erreur lors de la connexion:', error);
+    console.error('❌ [Instagram] Erreur CRITIQUE lors de la connexion:', error);
+    console.error('❌ [Instagram] Stack trace:', error.stack);
     return {
       success: false,
       error: `Erreur de connexion Instagram: ${error.message}`,

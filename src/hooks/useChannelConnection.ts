@@ -10,6 +10,12 @@ export const useChannelConnection = (onConnectionComplete: () => void) => {
   const { openAuthWindow } = useOAuthWindow();
   const [connecting, setConnecting] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [whatsappState, setWhatsappState] = useState<{
+    requires_phone_input?: boolean;
+    requires_sms?: boolean;
+    phone_number?: string;
+    account_id?: string;
+  } | null>(null);
 
   const handleConnectProvider = useCallback(async (provider: string, user: any) => {
     if (!user) {
@@ -23,6 +29,7 @@ export const useChannelConnection = (onConnectionComplete: () => void) => {
 
     setConnecting(provider);
     setQrCode(null);
+    setWhatsappState(null);
     
     try {
       console.log(`🔌 Tentative de connexion ${provider}...`);
@@ -30,21 +37,39 @@ export const useChannelConnection = (onConnectionComplete: () => void) => {
       
       console.log(`📄 Réponse reçue pour ${provider}:`, result);
       
-      if (result.qr_code) {
-        // Pour WhatsApp, afficher le QR code
+      if (result.requires_phone_input) {
+        // WhatsApp demande le numéro de téléphone
+        console.log('📞 WhatsApp demande numéro de téléphone');
+        setWhatsappState({
+          requires_phone_input: true,
+          account_id: result.account_id
+        });
+        setConnecting(null);
+        toast({
+          title: "Numéro requis",
+          description: "Veuillez saisir votre numéro WhatsApp Business",
+        });
+      } else if (result.requires_sms) {
+        // WhatsApp par SMS
+        console.log('💬 WhatsApp par SMS pour:', result.phone_number);
+        setWhatsappState({
+          requires_sms: true,
+          phone_number: result.phone_number,
+          account_id: result.account_id
+        });
+        setConnecting(null);
+        toast({
+          title: "Code SMS",
+          description: `Code envoyé au ${result.phone_number}`,
+        });
+      } else if (result.qr_code) {
+        // Pour WhatsApp, afficher le QR code en fallback
         console.log('📱 QR Code WhatsApp reçu, longueur:', result.qr_code.length);
         setQrCode(result.qr_code);
         setConnecting(null);
         toast({
           title: "QR Code généré",
           description: "Scannez le QR code avec WhatsApp pour connecter votre compte",
-        });
-      } else if (result.requires_sms) {
-        // Alternative WhatsApp par SMS
-        setConnecting(null);
-        toast({
-          title: "Connexion WhatsApp",
-          description: "Connexion par SMS disponible - cette fonctionnalité sera ajoutée prochainement",
         });
       } else if (result.authorization_url) {
         // Pour OAuth, utiliser le gestionnaire de fenêtre
@@ -126,11 +151,29 @@ export const useChannelConnection = (onConnectionComplete: () => void) => {
     });
   }, [toast]);
 
+  const handleWhatsAppSuccess = useCallback(() => {
+    setWhatsappState(null);
+    toast({
+      title: "WhatsApp connecté",
+      description: "Votre compte WhatsApp Business a été connecté avec succès",
+    });
+    setTimeout(() => {
+      onConnectionComplete();
+    }, 1000);
+  }, [onConnectionComplete, toast]);
+
+  const handleWhatsAppCancel = useCallback(() => {
+    setWhatsappState(null);
+  }, []);
+
   return {
     connecting,
     qrCode,
     setQrCode,
+    whatsappState,
     handleConnectProvider,
-    handleQRError
+    handleQRError,
+    handleWhatsAppSuccess,
+    handleWhatsAppCancel
   };
 };
